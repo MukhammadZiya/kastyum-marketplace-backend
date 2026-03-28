@@ -10,7 +10,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { multerOptions } from '../../libs/utils/multer-options';
 import { ShapeService } from '../../libs/services/shape.service';
 
-@Controller('admin/members')
+@Controller('admin/member')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(MemberType.ADMIN)
 export class MemberAdminController {
