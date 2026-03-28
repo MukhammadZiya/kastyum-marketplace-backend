@@ -18,6 +18,11 @@ export class MemberAdminController {
         return this.memberService.getMembersByAdmin();
     }
 
+    @Get('detail/:id')
+    async getMemberByAdmin(@Param('id') id: string): Promise<MemberResponse> {
+        return this.memberService.getMemberByAdmin(id);
+    }
+
     @Post('update/:id')
     async updateMemberByAdmin(
         @Param('id') id: string,

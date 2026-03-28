@@ -100,4 +100,10 @@ export class MemberService {
         if (!result) throw new InternalServerErrorException(Message.UPDATE_FAILED);
         return result as any;
     }
+
+    async getMemberByAdmin(id: string): Promise<MemberResponse> {
+        const result = await this.memberModel.findById(id).exec();
+        if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+        return result as any;
+    }
 }
