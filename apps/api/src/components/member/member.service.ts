@@ -72,9 +72,11 @@ export class MemberService {
         return result as any;
     }
 
-    async updateMember(id: string, input: MemberUpdateInput): Promise<MemberResponse> {
-        if (input.password) {
-            input.password = await bcrypt.hash(input.password, 10);
+    async updateMember(id: string, input: MemberUpdateInput): Promise<MemberAuthResponse> {
+        const { password } = input;
+
+        if (password) {
+            input.password = await bcrypt.hash(password, 10);
         }
 
         const result = await this.memberModel
@@ -82,7 +84,8 @@ export class MemberService {
             .exec();
 
         if (!result) throw new InternalServerErrorException(Message.UPDATE_FAILED);
-        return result as any;
+
+        return this.authService.generateToken(result);
     }
 
     async getMemberDetail(id: string): Promise<MemberResponse> {

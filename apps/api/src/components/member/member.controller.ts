@@ -38,7 +38,7 @@ export class MemberController {
         @CurrentUser('sub') id: string,
         @Body() input: MemberUpdateInput,
         @UploadedFile() file: any,
-    ): Promise<MemberResponse> {
+    ): Promise<MemberAuthResponse> {
         if (file) {
             const oldMember = await this.memberService.getMemberMe(id);
             if (oldMember.image) {
