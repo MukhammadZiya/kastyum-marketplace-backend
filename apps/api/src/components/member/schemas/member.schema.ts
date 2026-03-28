@@ -24,7 +24,7 @@ export class Member extends Document {
     @Prop({ required: true, select: false })
     password?: string;
 
-    @Prop()
+    @Prop({ unique: true, sparse: true })
     phone?: string;
 
     @Prop({ required: true, enum: MemberType, default: MemberType.USER })

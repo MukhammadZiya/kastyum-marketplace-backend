@@ -26,6 +26,13 @@ export class MemberService {
             throw new BadRequestException(Message.USED_EMAIL);
         }
 
+        if (input.phone) {
+            const existingPhone = await this.memberModel.findOne({ phone: input.phone });
+            if (existingPhone) {
+                throw new BadRequestException(Message.USED_PHONE);
+            }
+        }
+
         if (input.password) {
             input.password = await bcrypt.hash(input.password, 10);
         }

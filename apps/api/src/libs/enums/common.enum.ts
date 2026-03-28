@@ -9,6 +9,7 @@ export enum Message {
 
     USED_NICK = 'This nick is already taken!',
     USED_EMAIL = 'This email is already registered!',
+    USED_PHONE = 'This phone number is already registered!',
     NO_MEMBER_NICK = 'No member with that member nick!',
     BLOCKED_USER = 'You have been blocked!',
     WRONG_PASSWORD = 'Wrong password, try again!',
