@@ -8,12 +8,16 @@ import { Roles } from '../../libs/decorators/roles.decorator';
 import { MemberType } from './schemas/member.schema';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { multerOptions } from '../../libs/utils/multer-options';
+import { ShapeService } from '../../libs/services/shape.service';
 
 @Controller('admin/members')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(MemberType.ADMIN)
 export class MemberAdminController {
-    constructor(private readonly memberService: MemberService) { }
+    constructor(
+        private readonly memberService: MemberService,
+        private readonly shapeService: ShapeService,
+    ) { }
 
     @Get('list')
     async getMembersByAdmin(): Promise<MemberResponse[]> {
@@ -33,7 +37,11 @@ export class MemberAdminController {
         @UploadedFile() file: any,
     ): Promise<MemberResponse> {
         if (file) {
-            input.image = `uploads/members/${file.filename}`;
+            const oldMember = await this.memberService.getMemberByAdmin(id);
+            if (oldMember.image) {
+                this.shapeService.removeImage(oldMember.image);
+            }
+            input.image = await this.shapeService.processImage(file);
         }
         return this.memberService.updateMemberByAdmin(id, input);
     }

@@ -6,10 +6,14 @@ import { JwtAuthGuard } from '../../libs/guards/jwt-auth.guard';
 import { CurrentUser } from '../../libs/decorators/current-user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { multerOptions } from '../../libs/utils/multer-options';
+import { ShapeService } from '../../libs/services/shape.service';
 
 @Controller('member')
 export class MemberController {
-    constructor(private readonly memberService: MemberService) { }
+    constructor(
+        private readonly memberService: MemberService,
+        private readonly shapeService: ShapeService,
+    ) { }
 
     @Post('signup')
     async signup(@Body() input: MemberInput): Promise<MemberAuthResponse> {
@@ -36,7 +40,11 @@ export class MemberController {
         @UploadedFile() file: any,
     ): Promise<MemberResponse> {
         if (file) {
-            input.image = `uploads/members/${file.filename}`;
+            const oldMember = await this.memberService.getMemberMe(id);
+            if (oldMember.image) {
+                this.shapeService.removeImage(oldMember.image);
+            }
+            input.image = await this.shapeService.processImage(file);
         }
         return this.memberService.updateMember(id, input);
     }
