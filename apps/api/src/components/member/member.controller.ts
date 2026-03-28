@@ -1,9 +1,11 @@
-import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { MemberService } from './member.service';
-import { LoginInput, MemberInput, MemberUpdateInput } from './dto/member.input';
+import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput } from './dto/member.input';
 import { MemberAuthResponse, MemberResponse } from './dto/member.response';
 import { JwtAuthGuard } from '../../libs/guards/jwt-auth.guard';
 import { CurrentUser } from '../../libs/decorators/current-user.decorator';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { multerOptions } from '../../libs/utils/multer-options';
 
 @Controller('member')
 export class MemberController {
@@ -26,11 +28,16 @@ export class MemberController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @UseInterceptors(FileInterceptor('image', multerOptions))
     @Post('update')
     async updateMember(
         @CurrentUser('sub') id: string,
         @Body() input: MemberUpdateInput,
+        @UploadedFile() file: any,
     ): Promise<MemberResponse> {
+        if (file) {
+            input.image = `uploads/members/${file.filename}`;
+        }
         return this.memberService.updateMember(id, input);
     }
 
