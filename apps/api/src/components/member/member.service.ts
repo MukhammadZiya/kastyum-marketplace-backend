@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuthService } from '../auth/auth.service';
 import { LoginInput, MemberInput } from './dto/member.input';
+import { MemberAuthResponse } from './dto/member.response';
 import { Member, MemberStatus } from './schemas/member.schema';
 import { Message } from '../../libs/enums/common.enum';
 import * as bcrypt from 'bcryptjs';
@@ -14,10 +15,15 @@ export class MemberService {
         private readonly authService: AuthService,
     ) { }
 
-    async signup(input: MemberInput): Promise<any> {
-        const existing = await this.memberModel.findOne({ email: input.email });
-        if (existing) {
-            throw new BadRequestException(Message.USED_MEMBER_NICK_OR_PHONE);
+    async signup(input: MemberInput): Promise<MemberAuthResponse> {
+        const existingNick = await this.memberModel.findOne({ nick: input.nick });
+        if (existingNick) {
+            throw new BadRequestException(Message.USED_NICK);
+        }
+
+        const existingEmail = await this.memberModel.findOne({ email: input.email });
+        if (existingEmail) {
+            throw new BadRequestException(Message.USED_EMAIL);
         }
 
         if (input.password) {
@@ -26,17 +32,17 @@ export class MemberService {
 
         try {
             const result = await this.memberModel.create(input);
-            const token = this.authService.generateToken(result);
-            return { member: result, accessToken: token.access_token };
+            return this.authService.generateToken(result);
         } catch (err: any) {
             throw new BadRequestException(Message.CREATE_FAILED);
         }
     }
 
-    async login(input: LoginInput): Promise<any> {
+    async login(input: LoginInput): Promise<MemberAuthResponse> {
         const { email, password } = input;
         const response = await this.memberModel
             .findOne({ email })
+            .select('+password')
             .exec();
 
         if (!response || response.status === MemberStatus.DELETE) {
@@ -48,7 +54,6 @@ export class MemberService {
         const isMatch = await bcrypt.compare(password, response.password!);
         if (!isMatch) throw new InternalServerErrorException(Message.WRONG_PASSWORD);
 
-        const token = this.authService.generateToken(response);
-        return { member: response, accessToken: token.access_token };
+        return this.authService.generateToken(response);
     }
 }

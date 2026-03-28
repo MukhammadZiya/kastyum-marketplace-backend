@@ -15,13 +15,13 @@ export enum MemberStatus {
 
 @Schema({ timestamps: true })
 export class Member extends Document {
-    @Prop({ required: true })
+    @Prop({ required: true, unique: true })
     nick: string;
 
     @Prop({ required: true, unique: true })
     email: string;
 
-    @Prop({ required: true })
+    @Prop({ required: true, select: false })
     password?: string;
 
     @Prop()
