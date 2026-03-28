@@ -82,12 +82,16 @@ apps/
 - All protected routes require `Authorization: Bearer <TOKEN>` header
 - Password hashing via bcryptjs
 - **Security**: Member password is set to `select: false` in schema and stripped from all auth responses.
-- **Uniqueness**: `email`, `nick`, and `phone` are all unique constraints in the system.
+- **Uniqueness**: 
+  - `email` (String, Unique)
+  - `phone` (String, Unique)
+  - `image` (String, Optional)
+  - `type` (Enum: ADMIN, SELLER, USER)
 
 ## Database Collections
 | Collection  | Schema         | Key Fields                                                |
 |-------------|----------------|-----------------------------------------------------------|
-| members     | Member         | nick, email, password, phone, type, status                |
+| members     | Member         | nick, email, password, phone, image, type, status         |
 | products    | Product        | sellerId (ref: Member), title, description, price, colors, sizes, brand, material, fit, images, stockCount, inStock, status |
 | orders      | Order          | memberId (ref: Member), sellerId (ref: Member), items (embedded OrderItem[]), totalAmount, status, shippingAddress |
 | colors      | Color          | name, hexCode                                             |

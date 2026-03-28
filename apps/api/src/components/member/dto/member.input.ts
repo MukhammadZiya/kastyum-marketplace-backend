@@ -17,6 +17,10 @@ export class MemberInput {
     phone?: string;
 
     @IsOptional()
+    @IsString()
+    image?: string;
+
+    @IsOptional()
     @IsEnum(MemberType)
     type?: MemberType;
 }
@@ -41,6 +45,10 @@ export class MemberUpdateInput {
 
     @IsOptional()
     @IsString()
+    image?: string;
+
+    @IsOptional()
+    @IsString()
     @MinLength(6)
     password?: string;
 }
@@ -61,4 +69,8 @@ export class MemberAdminUpdateInput {
     @IsOptional()
     @IsString()
     phone?: string;
+
+    @IsOptional()
+    @IsString()
+    image?: string;
 }

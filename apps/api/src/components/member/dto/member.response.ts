@@ -5,6 +5,7 @@ export interface MemberResponse {
     nick: string;
     email: string;
     phone?: string;
+    image?: string;
     type: MemberType;
     status: MemberStatus;
     createdAt: Date;

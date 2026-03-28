@@ -27,6 +27,9 @@ export class Member extends Document {
     @Prop({ unique: true, sparse: true })
     phone?: string;
 
+    @Prop()
+    image?: string;
+
     @Prop({ required: true, enum: MemberType, default: MemberType.USER })
     type: MemberType;
 
