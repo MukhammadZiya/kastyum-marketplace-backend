@@ -19,4 +19,6 @@ export enum Message {
     NOT_ALLOWED_REQUEST = 'Not Allowed Request!',
     PROVIDE_ALLOWED_FORMAT = 'Please provide jpg, jpeg or png images!',
     SELF_SUBSCRIPTION_DENIED = 'Self subscription is denied!',
+    INVALID_TOKEN = 'Invalid token!',
+    ATTRIBUTE_TYPE_NOT_FOUND = 'Attribute type not found!',
 }

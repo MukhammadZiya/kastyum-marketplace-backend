@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Color, Size, Brand, Material, Fit } from './schemas/attributes.schema';
+import { Message } from '../../libs/enums/common.enum';
 
 @Injectable()
 export class AttributesService {
@@ -20,7 +21,7 @@ export class AttributesService {
             case 'brand': return this.brandModel;
             case 'material': return this.materialModel;
             case 'fit': return this.fitModel;
-            default: throw new NotFoundException('Attribute type topilmadi');
+            default: throw new NotFoundException(Message.ATTRIBUTE_TYPE_NOT_FOUND);
         }
     }
 
