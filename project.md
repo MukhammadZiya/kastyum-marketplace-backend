@@ -32,8 +32,9 @@ apps/
           dto/member.input.ts          # MemberInput, LoginInput DTOs
           dto/login.dto.ts             # Login DTO
           member.module.ts
-          member.service.ts            # signup(), login()
-          member.controller.ts         # POST /member/signup, POST /member/login
+          member.service.ts            # signup(), login(), getMemberMe(), updateMember(), getMemberDetail(), etc.
+          member.controller.ts         # User facing: signup, login, me, update, detail
+          member.admin.controller.ts   # Admin facing: list, detail, update
         attributes/                    # Dynamic catalog attributes
           schemas/attributes.schema.ts # Color, Size, Brand, Material, Fit models
           dto/attribute.dto.ts
@@ -80,6 +81,8 @@ apps/
 - JWT token returned on successful auth
 - All protected routes require `Authorization: Bearer <TOKEN>` header
 - Password hashing via bcryptjs
+- **Security**: Member password is set to `select: false` in schema and stripped from all auth responses.
+- **Uniqueness**: `email`, `nick`, and `phone` are all unique constraints in the system.
 
 ## Database Collections
 | Collection  | Schema         | Key Fields                                                |
@@ -97,10 +100,20 @@ apps/
 All endpoints use only `GET` (read) and `POST` (write) methods.
 
 ### Member
-| Method | Endpoint          | Auth | Role | Description      |
-|--------|-------------------|------|------|------------------|
-| POST   | /member/signup    | No   | -    | Register          |
-| POST   | /member/login     | No   | -    | Login             |
+| Method | Endpoint                    | Auth | Role  | Description               |
+|--------|-----------------------------|------|-------|---------------------------|
+| POST   | /member/signup              | No   | -     | Register (Unique nick/email/phone) |
+| POST   | /member/login               | No   | -     | Login                     |
+| GET    | /member/me                  | Yes  | -     | Get current user profile  |
+| POST   | /member/update              | Yes  | -     | Update own profile        |
+| GET    | /member/detail/:id          | No   | -     | Get member public info    |
+
+### Member Admin
+| Method | Endpoint                    | Auth | Role  | Description               |
+|--------|-----------------------------|------|-------|---------------------------|
+| GET    | /admin/members/list         | Yes  | ADMIN | List all members          |
+| GET    | /admin/members/detail/:id   | Yes  | ADMIN | Get any member detail     |
+| POST   | /admin/members/update/:id   | Yes  | ADMIN | Update member status/type |
 
 ### Attributes
 | Method | Endpoint                    | Auth | Role  | Description       |
