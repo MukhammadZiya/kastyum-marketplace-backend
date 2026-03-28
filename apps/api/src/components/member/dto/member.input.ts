@@ -1,5 +1,5 @@
 import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { MemberType } from '../schemas/member.schema';
+import { MemberStatus, MemberType } from '../schemas/member.schema';
 
 export class MemberInput {
     @IsString()
@@ -28,4 +28,37 @@ export class LoginInput {
     @IsString()
     @MinLength(6)
     password: string;
+}
+
+export class MemberUpdateInput {
+    @IsOptional()
+    @IsString()
+    nick?: string;
+
+    @IsOptional()
+    @IsString()
+    phone?: string;
+
+    @IsOptional()
+    @IsString()
+    @MinLength(6)
+    password?: string;
+}
+
+export class MemberAdminUpdateInput {
+    @IsOptional()
+    @IsEnum(MemberType)
+    type?: MemberType;
+
+    @IsOptional()
+    @IsEnum(MemberStatus)
+    status?: MemberStatus;
+
+    @IsOptional()
+    @IsString()
+    nick?: string;
+
+    @IsOptional()
+    @IsString()
+    phone?: string;
 }

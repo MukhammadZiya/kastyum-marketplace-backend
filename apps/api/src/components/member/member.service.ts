@@ -2,8 +2,8 @@ import { Injectable, UnauthorizedException, BadRequestException, InternalServerE
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuthService } from '../auth/auth.service';
-import { LoginInput, MemberInput } from './dto/member.input';
-import { MemberAuthResponse } from './dto/member.response';
+import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput } from './dto/member.input';
+import { MemberAuthResponse, MemberResponse } from './dto/member.response';
 import { Member, MemberStatus } from './schemas/member.schema';
 import { Message } from '../../libs/enums/common.enum';
 import * as bcrypt from 'bcryptjs';
@@ -55,5 +55,49 @@ export class MemberService {
         if (!isMatch) throw new InternalServerErrorException(Message.WRONG_PASSWORD);
 
         return this.authService.generateToken(response);
+    }
+
+    async getMemberMe(id: string): Promise<MemberResponse> {
+        const result = await this.memberModel.findById(id).exec();
+        if (!result || result.status !== MemberStatus.ACTIVE) {
+            throw new BadRequestException(Message.NO_MEMBER_NICK);
+        }
+        return result as any;
+    }
+
+    async updateMember(id: string, input: MemberUpdateInput): Promise<MemberResponse> {
+        if (input.password) {
+            input.password = await bcrypt.hash(input.password, 10);
+        }
+
+        const result = await this.memberModel
+            .findByIdAndUpdate(id, input, { new: true })
+            .exec();
+
+        if (!result) throw new InternalServerErrorException(Message.UPDATE_FAILED);
+        return result as any;
+    }
+
+    async getMemberDetail(id: string): Promise<MemberResponse> {
+        const result = await this.memberModel
+            .findOne({ _id: id, status: MemberStatus.ACTIVE })
+            .exec();
+
+        if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+        return result as any;
+    }
+
+    async getMembersByAdmin(): Promise<MemberResponse[]> {
+        const result = await this.memberModel.find().sort({ createdAt: -1 }).exec();
+        return result as any[];
+    }
+
+    async updateMemberByAdmin(id: string, input: MemberAdminUpdateInput): Promise<MemberResponse> {
+        const result = await this.memberModel
+            .findByIdAndUpdate(id, input, { new: true })
+            .exec();
+
+        if (!result) throw new InternalServerErrorException(Message.UPDATE_FAILED);
+        return result as any;
     }
 }
