@@ -92,13 +92,14 @@ apps/
 | Collection  | Schema         | Key Fields                                                |
 |-------------|----------------|-----------------------------------------------------------|
 | members     | Member         | nick, email, password, phone, image, type, status         |
-| products    | Product        | sellerId (ref: Member), title, description, price, colors, sizes, brand, material, fit, images, stockCount, inStock, status |
+| products    | Product        | sellerId, title, modelNumber, description, price, colors, sizes, brand, material, style, fit, images, stockCount, inStock, status |
 | orders      | Order          | memberId (ref: Member), sellerId (ref: Member), items (embedded OrderItem[]), totalAmount, status, shippingAddress |
 | colors      | Color          | name, hexCode                                             |
 | sizes       | Size           | name                                                      |
 | brands      | Brand          | name                                                      |
 | materials   | Material       | name                                                      |
 | fits        | Fit            | name                                                      |
+| styles      | Style          | name                                                      |
 
 ## API Endpoints
 All endpoints use only `GET` (read) and `POST` (write) methods.

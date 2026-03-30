@@ -15,6 +15,9 @@ export class Product extends Document {
     title: string;
 
     @Prop({ required: true })
+    modelNumber: string;
+
+    @Prop({ required: true })
     description: string;
 
     @Prop({ required: true })
@@ -34,6 +37,9 @@ export class Product extends Document {
 
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Material' })
     material?: string;
+
+    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Style' })
+    style?: string;
 
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Fit' })
     fit?: string;

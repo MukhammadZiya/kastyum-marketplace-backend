@@ -5,7 +5,8 @@ import {
     Size, SizeSchema,
     Brand, BrandSchema,
     Material, MaterialSchema,
-    Fit, FitSchema
+    Fit, FitSchema,
+    Style, StyleSchema
 } from './schemas/attributes.schema';
 import { AttributesService } from './attributes.service';
 import { AttributesController } from './attributes.controller';
@@ -19,6 +20,7 @@ import { AttributesAdminController } from './attributes.admin.controller';
             { name: Brand.name, schema: BrandSchema },
             { name: Material.name, schema: MaterialSchema },
             { name: Fit.name, schema: FitSchema },
+            { name: Style.name, schema: StyleSchema },
         ]),
     ],
     providers: [AttributesService],
