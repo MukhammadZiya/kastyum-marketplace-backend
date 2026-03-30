@@ -10,7 +10,7 @@ export const ColorSchema = SchemaFactory.createForClass(Color);
 
 @Schema()
 export class Size extends Document {
-    @Prop({ required: true, unique: true }) value: string;
+    @Prop({ required: true, unique: true }) name: string;
 }
 export const SizeSchema = SchemaFactory.createForClass(Size);
 

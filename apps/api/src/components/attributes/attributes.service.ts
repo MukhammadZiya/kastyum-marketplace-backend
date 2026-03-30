@@ -25,6 +25,24 @@ export class AttributesService {
         }
     }
 
+    async findAllAttributes() {
+        const [colors, sizes, brands, materials, fits] = await Promise.all([
+            this.colorModel.find().exec(),
+            this.sizeModel.find().exec(),
+            this.brandModel.find().exec(),
+            this.materialModel.find().exec(),
+            this.fitModel.find().exec(),
+        ]);
+
+        return {
+            color: colors,
+            size: sizes,
+            brand: brands,
+            material: materials,
+            fit: fits,
+        };
+    }
+
     async findAll(type: string) {
         return this.getModel(type).find().exec();
     }

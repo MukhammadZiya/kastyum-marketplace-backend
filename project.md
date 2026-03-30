@@ -102,6 +102,7 @@ apps/
 
 ## API Endpoints
 All endpoints use only `GET` (read) and `POST` (write) methods.
+> **Note:** Barcha ADMIN roliga tegishli bo'lgan API endpoint'lar muqarrar ravishda `/admin/...` bilan boshlanishi shart.
 
 ### Member
 | Method | Endpoint                    | Auth | Role  | Description               |
@@ -120,11 +121,11 @@ All endpoints use only `GET` (read) and `POST` (write) methods.
 | POST   | /admin/member/update/:id    | Yes  | ADMIN | Update member status/type |
 
 ### Attributes
-| Method | Endpoint                    | Auth | Role  | Description       |
-|--------|-----------------------------|------|-------|-------------------|
-| GET    | /attribute/list/:type       | No   | -     | List by type      |
-| POST   | /attribute/create/:type     | Yes  | ADMIN | Create attribute  |
-| POST   | /attribute/delete/:type/:id | Yes  | ADMIN | Delete attribute  |
+| Method | Endpoint                          | Auth | Role  | Description       |
+|--------|-----------------------------------|------|-------|-------------------|
+| GET    | /attribute/list/:type             | No   | -     | List by type      |
+| POST   | /admin/attribute/create/:type     | Yes  | ADMIN | Create attribute  |
+| POST   | /admin/attribute/delete/:type/:id | Yes  | ADMIN | Delete attribute  |
 
 ### Products
 | Method | Endpoint            | Auth | Role   | Description          |

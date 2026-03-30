@@ -9,6 +9,7 @@ import {
 } from './schemas/attributes.schema';
 import { AttributesService } from './attributes.service';
 import { AttributesController } from './attributes.controller';
+import { AttributesAdminController } from './attributes.admin.controller';
 
 @Module({
     imports: [
@@ -21,7 +22,7 @@ import { AttributesController } from './attributes.controller';
         ]),
     ],
     providers: [AttributesService],
-    controllers: [AttributesController],
+    controllers: [AttributesController, AttributesAdminController],
     exports: [AttributesService, MongooseModule],
 })
 export class AttributesModule { }

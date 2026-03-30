@@ -10,22 +10,14 @@ import { MemberType } from '../member/schemas/member.schema';
 export class AttributesController {
     constructor(private readonly attrService: AttributesService) { }
 
+    @Get('list')
+    getAllAttributes() {
+        return this.attrService.findAllAttributes();
+    }
+
     @Get('list/:type')
     getAll(@Param('type') type: string) {
         return this.attrService.findAll(type);
     }
 
-    @Post('create/:type')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(MemberType.ADMIN)
-    create(@Param('type') type: string, @Body() data: CreateAttributeDto) {
-        return this.attrService.create(type, data);
-    }
-
-    @Post('delete/:type/:id')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(MemberType.ADMIN)
-    remove(@Param('type') type: string, @Param('id') id: string) {
-        return this.attrService.remove(type, id);
-    }
 }
