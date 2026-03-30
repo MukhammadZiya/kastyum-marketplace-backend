@@ -4,6 +4,13 @@ import { Document, Schema as MongooseSchema } from 'mongoose';
 export enum ProductStatus {
     ACTIVE = 'ACTIVE',
     INACTIVE = 'INACTIVE',
+    DELETE = 'DELETE',
+}
+
+export enum TargetAudience {
+    MEN = 'MEN',
+    WOMEN = 'WOMEN',
+    KIDS = 'KIDS',
 }
 
 @Schema({ timestamps: true })
@@ -17,14 +24,14 @@ export class Product extends Document {
     @Prop({ required: true })
     modelNumber: string;
 
+    @Prop({ required: true, enum: TargetAudience })
+    audience: TargetAudience;
+
     @Prop({ required: true })
     description: string;
 
     @Prop({ required: true })
     price: number;
-
-    @Prop({ default: 'UZS' })
-    currency: string;
 
     @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'Color' }] })
     colors: string[];

@@ -1,4 +1,8 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Query, UseInterceptors, UploadedFiles, BadRequestException } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { multerOptions } from '../../libs/utils/multer-options';
+import { ShapeService } from '../../libs/services/shape.service';
+import { Message } from '../../libs/enums/common.enum';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { JwtAuthGuard } from '../../libs/guards/jwt-auth.guard';
@@ -9,13 +13,38 @@ import { MemberType } from '../member/schemas/member.schema';
 
 @Controller('product')
 export class ProductsController {
-    constructor(private readonly productsService: ProductsService) { }
+    constructor(
+        private readonly productsService: ProductsService,
+        private readonly shapeService: ShapeService,
+    ) { }
 
     @Post('create')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(MemberType.SELLER)
-    create(@Body() createProductDto: CreateProductDto, @CurrentUser() user: any) {
+    @UseInterceptors(FilesInterceptor('images', 5, multerOptions))
+    async create(
+        @UploadedFiles() files: Express.Multer.File[],
+        @Body() createProductDto: CreateProductDto,
+        @CurrentUser() user: any
+    ) {
+        if (!files || files.length === 0) {
+            throw new BadRequestException(Message.PROVIDE_PRODUCT_IMAGE);
+        }
+
+        const uploadedImages = [];
+        for (const file of files) {
+            const imgUrl = await this.shapeService.processImage(file, 'products');
+            uploadedImages.push(imgUrl);
+        }
+        createProductDto.images = uploadedImages;
+
         return this.productsService.create(user.sub, createProductDto);
+    }
+    @Get('seller-list')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(MemberType.SELLER)
+    findSellerList(@CurrentUser() user: any) {
+        return this.productsService.findSellerProducts(user.sub);
     }
 
     @Get('list')
@@ -31,11 +60,23 @@ export class ProductsController {
     @Post('update/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(MemberType.SELLER)
-    update(
+    @UseInterceptors(FilesInterceptor('images', 5, multerOptions))
+    async update(
         @Param('id') id: string,
+        @UploadedFiles() files: Express.Multer.File[],
         @Body() updateProductDto: Partial<CreateProductDto>,
         @CurrentUser() user: any,
     ) {
+        if (files && files.length > 0) {
+            const uploadedImages = [];
+            for (const file of files) {
+                const imgUrl = await this.shapeService.processImage(file, 'products');
+                uploadedImages.push(imgUrl);
+            }
+            // if we are adding new images, we could either push them or replace them
+            // assuming we replace them directly or append. For now we will overwrite or set them.
+            updateProductDto.images = uploadedImages;
+        }
         return this.productsService.update(id, updateProductDto, user.sub);
     }
 

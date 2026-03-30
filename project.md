@@ -158,7 +158,8 @@ All endpoints use only `GET` (read) and `POST` (write) methods.
 - **CORS**: enabled with credentials
 
 ## Error Messages
-All error messages are centralized in `libs/enums/common.enum.ts` as `Message` enum (English only).
+> **STRICT RULE:** Xatolik xabarlari (Error messages) HECH QACHON o'zbek tilida yoki hardcode (fayl ichida to'g'ridan-to'g'ri) qilib yozilmasligi qat'iy dastur talabidir! 
+> Barcha xatoliklar istisnosiz INGLIZ tilida va `libs/enums/common.enum.ts` markaziy faylidagi `Message` enumiga yangi qo'shilgan holda ishlatilishi shart.
 
 ## Environment Variables
 | Variable     | Description              |

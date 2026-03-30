@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Product } from './schemas/product.schema';
+import { Product, ProductStatus } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { Message } from '../../libs/enums/common.enum';
 
@@ -20,7 +20,7 @@ export class ProductsService {
     }
 
     async findAll(query: any): Promise<Product[]> {
-        const filter: any = {};
+        const filter: any = { status: { $ne: ProductStatus.DELETE } };
         if (query.brand) filter.brand = query.brand;
         if (query.material) filter.material = query.material;
         if (query.fit) filter.fit = query.fit;
@@ -33,13 +33,13 @@ export class ProductsService {
         }
 
         return this.productModel.find(filter)
-            .populate('colors sizes brand material fit sellerId', '-password')
+            .populate('colors sizes brand material fit style sellerId', '-password')
             .exec();
     }
 
     async findOne(id: string): Promise<Product> {
-        const product = await this.productModel.findById(id)
-            .populate('colors sizes brand material fit sellerId', '-password')
+        const product = await this.productModel.findOne({ _id: id, status: { $ne: ProductStatus.DELETE } })
+            .populate('colors sizes brand material fit style sellerId', '-password')
             .exec();
         if (!product) throw new NotFoundException(Message.NO_DATA_FOUND);
         return product;
@@ -55,14 +55,27 @@ export class ProductsService {
         return product;
     }
 
+    async findSellerProducts(sellerId: string): Promise<Product[]> {
+        return this.productModel.find({ sellerId, status: { $ne: ProductStatus.DELETE } })
+            .populate('colors sizes brand material fit style', '-password')
+            .exec();
+    }
+
     async remove(id: string, memberId: string, type: string): Promise<void> {
-        const filter: any = { _id: id };
-        if (type !== 'ADMIN') {
-            filter.sellerId = memberId;
-        }
-        const result = await this.productModel.deleteOne(filter).exec();
-        if (result.deletedCount === 0) {
-            throw new NotFoundException(Message.REMOVE_FAILED);
+        if (type === 'ADMIN') {
+            const result = await this.productModel.deleteOne({ _id: id }).exec();
+            if (result.deletedCount === 0) {
+                throw new NotFoundException(Message.REMOVE_FAILED);
+            }
+        } else {
+            const product = await this.productModel.findOneAndUpdate(
+                { _id: id, sellerId: memberId },
+                { status: ProductStatus.DELETE },
+                { new: true }
+            ).exec();
+            if (!product) {
+                throw new NotFoundException(Message.REMOVE_FAILED);
+            }
         }
     }
 }
