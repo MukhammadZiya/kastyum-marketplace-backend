@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { Message } from '../enums/common.enum';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -15,13 +16,13 @@ export class JwtAuthGuard implements CanActivate {
         const request = context.switchToHttp().getRequest();
         const token = this.extractTokenFromHeader(request);
         if (!token) {
-            throw new UnauthorizedException('Token topilmadi');
+            throw new UnauthorizedException(Message.TOKEN_NOT_EXIST);
         }
         try {
             const payload = await this.jwtService.verifyAsync(token);
             request['user'] = payload;
         } catch {
-            throw new UnauthorizedException('Yaroqsiz token');
+            throw new UnauthorizedException(Message.INVALID_TOKEN);
         }
         return true;
     }

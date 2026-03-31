@@ -1,7 +1,8 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { MemberType } from '../../components/member/schemas/member.schema';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { Message } from '../enums/common.enum';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -16,6 +17,9 @@ export class RolesGuard implements CanActivate {
             return true;
         }
         const { user } = context.switchToHttp().getRequest();
-        return requiredRoles.includes(user.type);
+        if (!requiredRoles.includes(user.type)) {
+            throw new ForbiddenException(Message.ONLY_SPECIFIC_ROLES_ALLOWED);
+        }
+        return true;
     }
 }

@@ -11,10 +11,12 @@ export enum OrderStatus {
 @Schema()
 export class OrderItem {
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Product', required: true }) productId: string;
+    @Prop({ required: true }) productTitle: string;
+    @Prop({ required: true }) productImage: string;
     @Prop({ required: true }) quantity: number;
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Size' }) size?: string;
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Color' }) color?: string;
-    @Prop({ required: true }) currentPrice: number;
+    @Prop({ required: true }) price: number;
 }
 export const OrderItemSchema = SchemaFactory.createForClass(OrderItem);
 

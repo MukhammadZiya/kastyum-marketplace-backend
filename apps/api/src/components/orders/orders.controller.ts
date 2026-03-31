@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Query } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { OrderInquiryDto } from './dto/order-inquiry.dto';
 import { JwtAuthGuard } from '../../libs/guards/jwt-auth.guard';
 import { RolesGuard } from '../../libs/guards/roles.guard';
 import { Roles } from '../../libs/decorators/roles.decorator';
@@ -22,15 +23,15 @@ export class OrdersController {
     @Get('my-list')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(MemberType.USER)
-    findMyOrders(@CurrentUser() user: any) {
-        return this.ordersService.findMyOrders(user.sub);
+    findMyOrders(@CurrentUser() user: any, @Query() query: OrderInquiryDto) {
+        return this.ordersService.findMyOrders(user.sub, query);
     }
 
     @Get('seller-list')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(MemberType.SELLER)
-    findSellerOrders(@CurrentUser() user: any) {
-        return this.ordersService.findSellerOrders(user.sub);
+    findSellerOrders(@CurrentUser() user: any, @Query() query: OrderInquiryDto) {
+        return this.ordersService.findSellerOrders(user.sub, query);
     }
 
     @Post('update-status/:id')

@@ -6,7 +6,6 @@ export class OrderItemDto {
     @IsNumber() quantity: number;
     @IsOptional() @IsString() size?: string;
     @IsOptional() @IsString() color?: string;
-    @IsNumber() currentPrice: number;
 }
 
 export class CreateOrderDto {
@@ -16,8 +15,6 @@ export class CreateOrderDto {
     @ValidateNested({ each: true })
     @Type(() => OrderItemDto)
     items: OrderItemDto[];
-
-    @IsNumber() totalAmount: number;
 
     @IsOptional() @IsObject() shippingAddress?: Record<string, any>;
 }
