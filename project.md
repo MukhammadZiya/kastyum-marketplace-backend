@@ -117,7 +117,7 @@ All endpoints use only `GET` (read) and `POST` (write) methods.
 ### Member Admin
 | Method | Endpoint                    | Auth | Role  | Description               |
 |--------|-----------------------------|------|-------|---------------------------|
-| GET    | /admin/member/list          | Yes  | ADMIN | List all members          |
+| GET    | /admin/member/list          | Yes  | ADMIN | Paginated list with search|
 | GET    | /admin/member/detail/:id    | Yes  | ADMIN | Get any member detail     |
 | POST   | /admin/member/update/:id    | Yes  | ADMIN | Update member status/type |
 

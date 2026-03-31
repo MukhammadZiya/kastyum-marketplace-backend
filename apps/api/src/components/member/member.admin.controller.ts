@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { MemberService } from './member.service';
 import { MemberAdminUpdateInput } from './dto/member.input';
 import { MemberResponse } from './dto/member.response';
+import { MemberInquiryDto } from './dto/member-inquiry.dto';
 import { JwtAuthGuard } from '../../libs/guards/jwt-auth.guard';
 import { RolesGuard } from '../../libs/guards/roles.guard';
 import { Roles } from '../../libs/decorators/roles.decorator';
@@ -20,8 +21,8 @@ export class MemberAdminController {
     ) { }
 
     @Get('list')
-    async getMembersByAdmin(): Promise<MemberResponse[]> {
-        return this.memberService.getMembersByAdmin();
+    async getMembersByAdmin(@Query() query: MemberInquiryDto): Promise<{ list: MemberResponse[], total: number }> {
+        return this.memberService.getMembersByAdmin(query);
     }
 
     @Get('detail/:id')

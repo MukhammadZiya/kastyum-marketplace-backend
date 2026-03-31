@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { AuthService } from '../auth/auth.service';
 import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput } from './dto/member.input';
 import { MemberAuthResponse, MemberResponse } from './dto/member.response';
+import { MemberInquiryDto } from './dto/member-inquiry.dto';
 import { Member, MemberStatus } from './schemas/member.schema';
 import { Message } from '../../libs/enums/common.enum';
 import * as bcrypt from 'bcryptjs';
@@ -97,9 +98,38 @@ export class MemberService {
         return result as any;
     }
 
-    async getMembersByAdmin(): Promise<MemberResponse[]> {
-        const result = await this.memberModel.find().sort({ createdAt: -1 }).exec();
-        return result as any[];
+    async getMembersByAdmin(query: MemberInquiryDto): Promise<{ list: MemberResponse[], total: number }> {
+        const { page, limit, search } = query;
+        const match: any = {};
+
+        if (search) {
+            match.$or = [
+                { nick: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+            ];
+        }
+
+        const aggregateResult = await this.memberModel.aggregate([
+            { $match: match },
+            {
+                $facet: {
+                    list: [
+                        { $sort: { createdAt: -1 } },
+                        { $skip: (page - 1) * limit },
+                        { $limit: limit },
+                        { $project: { password: 0 } },
+                    ],
+                    total: [
+                        { $count: 'count' }
+                    ]
+                }
+            }
+        ]).exec();
+
+        const list = aggregateResult[0].list;
+        const total = aggregateResult[0].total[0]?.count || 0;
+
+        return { list, total };
     }
 
     async updateMemberByAdmin(id: string, input: MemberAdminUpdateInput): Promise<MemberResponse> {
