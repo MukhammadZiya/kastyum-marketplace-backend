@@ -149,7 +149,7 @@ All endpoints use only `GET` (read) and `POST` (write) methods.
 | Method | Endpoint                  | Auth | Role   | Description             |
 |--------|---------------------------|------|--------|-------------------------|
 | POST   | /order/create             | Yes  | USER   | Place order              |
-| GET    | /order/my-list            | Yes  | USER   | Get my orders            |
+| GET    | /order/my-list            | Yes  | USER   | Paginated list with status filter |
 | GET    | /order/seller-list        | Yes  | SELLER | Get orders for seller    |
 | POST   | /order/update-status/:id  | Yes  | SELLER | Update order status      |
 
