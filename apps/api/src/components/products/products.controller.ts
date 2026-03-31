@@ -70,13 +70,25 @@ export class ProductsController {
         @CurrentUser() user: any,
     ) {
         if (files && files.length > 0) {
+            const product = await this.productsService.findOne(id);
+            // Ensure the seller owns the product before deleting images
+            const sellerId = (product.sellerId as any)._id?.toString() || product.sellerId.toString();
+            if (sellerId !== user.sub) {
+                throw new BadRequestException(Message.NOT_ALLOWED_REQUEST);
+            }
+
+            // Remove old images from storage
+            if (product.images && product.images.length > 0) {
+                for (const oldImage of product.images) {
+                    this.shapeService.removeImage(oldImage);
+                }
+            }
+
             const uploadedImages = [];
             for (const file of files) {
                 const imgUrl = await this.shapeService.processImage(file, 'products');
                 uploadedImages.push(imgUrl);
             }
-            // if we are adding new images, we could either push them or replace them
-            // assuming we replace them directly or append. For now we will overwrite or set them.
             updateProductDto.images = uploadedImages;
         }
         return this.productsService.update(id, updateProductDto, user.sub);
