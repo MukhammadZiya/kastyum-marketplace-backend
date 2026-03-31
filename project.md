@@ -132,9 +132,9 @@ All endpoints use only `GET` (read) and `POST` (write) methods.
 | Method | Endpoint            | Auth | Role   | Description          |
 |--------|---------------------|------|--------|----------------------|
 | POST   | /product/create     | Yes  | SELLER | Create product       |
-| GET    | /product/list       | No   | -      | List with filters    |
+| GET    | /product/list       | No   | -      | Paginated list (ACTIVE only) |
 | GET    | /product/detail/:id | No   | -      | Get single product   |
-| POST   | /product/update/:id | Yes  | SELLER | Update own product   |
+| POST   | /product/update/:id | Yes  | SELLER | Update (Deletes old images if new ones uploaded) |
 | POST   | /product/delete/:id | Yes  | SELLER/ADMIN | Delete product |
 
 ### Orders
@@ -148,8 +148,17 @@ All endpoints use only `GET` (read) and `POST` (write) methods.
 ### Order Statuses
 `PENDING` → `ACCEPTED` → `SHIPPED` (or `CANCELLED`)
 
-### Product Filters (query params on /product/list)
-`brand`, `material`, `fit`, `color`, `size`, `minPrice`, `maxPrice`
+### Product Filters (query params on /product/list and /product/seller-list)
+`page`, `limit`, `brand`, `material`, `fit`, `color`, `size`, `minPrice`, `maxPrice`
+
+### Paginated Response Structure
+Endpoints that return a list of products (e.g., `/product/list`, `/product/seller-list`) return the following structure:
+```json
+{
+  "list": [ ... ],
+  "total": 123
+}
+```
 
 ## Global Middleware
 - **ValidationPipe**: whitelist enabled, strips unknown properties
