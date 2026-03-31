@@ -4,6 +4,7 @@ import { multerOptions } from '../../libs/utils/multer-options';
 import { ShapeService } from '../../libs/services/shape.service';
 import { Message } from '../../libs/enums/common.enum';
 import { ProductsService } from './products.service';
+import { ProductsInquiryDto } from './dto/products-inquiry.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { JwtAuthGuard } from '../../libs/guards/jwt-auth.guard';
 import { RolesGuard } from '../../libs/guards/roles.guard';
@@ -40,15 +41,16 @@ export class ProductsController {
 
         return this.productsService.create(user.sub, createProductDto);
     }
+
     @Get('seller-list')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(MemberType.SELLER)
-    findSellerList(@CurrentUser() user: any) {
-        return this.productsService.findSellerProducts(user.sub);
+    findSellerList(@CurrentUser() user: any, @Query() query: ProductsInquiryDto) {
+        return this.productsService.findSellerProducts(user.sub, query);
     }
 
     @Get('list')
-    findAll(@Query() query: any) {
+    findAll(@Query() query: ProductsInquiryDto) {
         return this.productsService.findAll(query);
     }
 
@@ -80,10 +82,10 @@ export class ProductsController {
         return this.productsService.update(id, updateProductDto, user.sub);
     }
 
-    @Post('delete/:id')
+    @Post('remove/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(MemberType.SELLER, MemberType.ADMIN)
     remove(@Param('id') id: string, @CurrentUser() user: any) {
-        return this.productsService.remove(id, user.sub, user.type);
+        return this.productsService.remove(id, user.sub);
     }
 }
