@@ -128,6 +128,14 @@ All endpoints use only `GET` (read) and `POST` (write) methods.
 | POST   | /admin/attribute/create/:type     | Yes  | ADMIN | Create attribute  |
 | POST   | /admin/attribute/delete/:type/:id | Yes  | ADMIN | Delete attribute  |
 
+### Products Admin
+| Method | Endpoint                    | Auth | Role  | Description               |
+|--------|-----------------------------|------|-------|---------------------------|
+| GET    | /admin/product/list         | Yes  | ADMIN | List all products         |
+| GET    | /admin/product/detail/:id   | Yes  | ADMIN | Get any product detail    |
+| POST   | /admin/product/update/:id   | Yes  | ADMIN | Update product status/info|
+| POST   | /admin/product/remove/:id   | Yes  | ADMIN | Safely remove product     |
+
 ### Products
 | Method | Endpoint            | Auth | Role   | Description          |
 |--------|---------------------|------|--------|----------------------|

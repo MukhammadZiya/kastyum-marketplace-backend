@@ -218,14 +218,76 @@ export class ProductsService {
         return { list, total };
     }
 
-    async remove(id: string, memberId: string): Promise<void> {
-        const product = await this.productModel.findOneAndUpdate(
-            { _id: id, sellerId: memberId },
-            { status: ProductStatus.DELETE },
-            { new: true }
-        ).exec();
-        if (!product) {
-            throw new NotFoundException(Message.REMOVE_FAILED);
+    async getProductsByAdmin(query: ProductsInquiryDto): Promise<{ list: Product[], total: number }> {
+        const { page, limit, brand, material, fit, color, size, minPrice, maxPrice } = query;
+        const match: any = {}; // Admin sees everything
+
+        if (brand) match.brand = new Types.ObjectId(brand);
+        if (material) match.material = new Types.ObjectId(material);
+        if (fit) match.fit = new Types.ObjectId(fit);
+        if (color) match.colors = { $in: [new Types.ObjectId(color)] };
+        if (size) match.sizes = { $in: [new Types.ObjectId(size)] };
+        if (minPrice || maxPrice) {
+            match.price = {};
+            if (minPrice) match.price.$gte = Number(minPrice);
+            if (maxPrice) match.price.$lte = Number(maxPrice);
+        }
+
+        const aggregateResult = await this.productModel.aggregate([
+            { $match: match },
+            {
+                $facet: {
+                    list: [
+                        { $sort: { createdAt: -1 } },
+                        { $skip: (page - 1) * limit },
+                        { $limit: limit },
+                        { $lookup: { from: 'members', localField: 'sellerId', foreignField: '_id', as: 'sellerId' } },
+                        { $unwind: { path: '$sellerId', preserveNullAndEmptyArrays: true } },
+                        { $project: { 'sellerId.password': 0 } },
+                        { $lookup: { from: 'colors', localField: 'colors', foreignField: '_id', as: 'colors' } },
+                        { $lookup: { from: 'sizes', localField: 'sizes', foreignField: '_id', as: 'sizes' } },
+                        { $lookup: { from: 'brands', localField: 'brand', foreignField: '_id', as: 'brand' } },
+                        { $unwind: { path: '$brand', preserveNullAndEmptyArrays: true } },
+                    ],
+                    total: [{ $count: 'count' }]
+                }
+            }
+        ]).exec();
+
+        const list = aggregateResult[0].list;
+        const total = aggregateResult[0].total[0]?.count || 0;
+        return { list, total };
+    }
+
+    async updateProductByAdmin(id: string, updateData: Partial<CreateProductDto>): Promise<Product> {
+        const product = await this.productModel.findByIdAndUpdate(id, updateData, { new: true }).exec();
+        if (!product) throw new NotFoundException(Message.UPDATE_FAILED);
+        return product;
+    }
+
+    async removeProductByAdmin(id: string): Promise<void> {
+        const product = await this.productModel.findById(id).exec();
+        if (!product) throw new NotFoundException(Message.NO_DATA_FOUND);
+
+        if (product.status === ProductStatus.DELETE) {
+            await this.productModel.deleteOne({ _id: id }).exec();
+        } else {
+            // As per user request: "lekiin u DELETEda bolmasa birinchi uni DELETE statusga change qiladi"
+            product.status = ProductStatus.DELETE;
+            await product.save();
+        }
+    }
+
+    async remove(id: string, memberId: string, type: string): Promise<void> {
+        if (type === 'ADMIN') {
+            return this.removeProductByAdmin(id);
+        } else {
+            const product = await this.productModel.findOneAndUpdate(
+                { _id: id, sellerId: memberId },
+                { status: ProductStatus.DELETE },
+                { new: true }
+            ).exec();
+            if (!product) throw new NotFoundException(Message.REMOVE_FAILED);
         }
     }
 }

@@ -94,10 +94,10 @@ export class ProductsController {
         return this.productsService.update(id, updateProductDto, user.sub);
     }
 
-    @Post('remove/:id')
+    @Post('delete/:id')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(MemberType.SELLER, MemberType.ADMIN)
     remove(@Param('id') id: string, @CurrentUser() user: any) {
-        return this.productsService.remove(id, user.sub);
+        return this.productsService.remove(id, user.sub, user.type);
     }
 }
