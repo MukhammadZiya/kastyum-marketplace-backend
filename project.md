@@ -134,7 +134,7 @@ All endpoints use only `GET` (read) and `POST` (write) methods.
 | GET    | /admin/product/list         | Yes  | ADMIN | List all products         |
 | GET    | /admin/product/detail/:id   | Yes  | ADMIN | Get any product detail    |
 | POST   | /admin/product/update/:id   | Yes  | ADMIN | Update product status/info|
-| POST   | /admin/product/remove/:id   | Yes  | ADMIN | Safely remove product     |
+| POST   | /admin/product/delete/:id   | Yes  | ADMIN | Safely delete product     |
 
 ### Products
 | Method | Endpoint            | Auth | Role   | Description          |

@@ -265,7 +265,7 @@ export class ProductsService {
         return product;
     }
 
-    async removeProductByAdmin(id: string): Promise<void> {
+    async deleteProductByAdmin(id: string): Promise<void> {
         const product = await this.productModel.findById(id).exec();
         if (!product) throw new NotFoundException(Message.NO_DATA_FOUND);
 
@@ -280,7 +280,7 @@ export class ProductsService {
 
     async remove(id: string, memberId: string, type: string): Promise<void> {
         if (type === 'ADMIN') {
-            return this.removeProductByAdmin(id);
+            return this.deleteProductByAdmin(id);
         } else {
             const product = await this.productModel.findOneAndUpdate(
                 { _id: id, sellerId: memberId },

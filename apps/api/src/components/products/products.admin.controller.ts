@@ -31,8 +31,8 @@ export class ProductsAdminController {
         return this.productsService.updateProductByAdmin(id, updateData);
     }
 
-    @Post('remove/:id')
-    async removeProductByAdmin(@Param('id') id: string) {
-        return this.productsService.removeProductByAdmin(id);
+    @Post('delete/:id')
+    async deleteProductByAdmin(@Param('id') id: string) {
+        return this.productsService.deleteProductByAdmin(id);
     }
 }
