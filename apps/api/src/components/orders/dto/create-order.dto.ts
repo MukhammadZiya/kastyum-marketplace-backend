@@ -9,12 +9,10 @@ export class OrderItemDto {
 }
 
 export class CreateOrderDto {
-    @IsString() sellerId: string;
-
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => OrderItemDto)
     items: OrderItemDto[];
 
-    @IsOptional() @IsObject() shippingAddress?: Record<string, any>;
+    @IsOptional() @IsString() shippingAddress?: string;
 }

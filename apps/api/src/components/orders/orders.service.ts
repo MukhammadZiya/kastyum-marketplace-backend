@@ -17,17 +17,30 @@ export class OrdersService {
     ) { }
 
     async create(memberId: string, createOrderDto: CreateOrderDto): Promise<Order> {
+        if (!createOrderDto.items || createOrderDto.items.length === 0) {
+            throw new BadRequestException('Order must contain at least one item.');
+        }
+
         const fullItems = [];
         let totalAmount = 0;
+        let expectedSellerId = '';
+        const productsToUpdate = [];
 
         for (const item of createOrderDto.items) {
             const product = await this.productsService.findOne(item.productId);
             if (!product) throw new NotFoundException(`${Message.NO_DATA_FOUND}: ${item.productId}`);
 
+            if (product.stockCount < item.quantity) {
+                throw new BadRequestException(Message.NOT_ENOUGH_STOCK);
+            }
+
             // Verify seller consistency
             const productSellerId = (product.sellerId as any)._id?.toString() || product.sellerId.toString();
-            if (productSellerId !== createOrderDto.sellerId) {
-                throw new BadRequestException(`Product ${item.productId} does not belong to the specified seller.`);
+
+            if (!expectedSellerId) {
+                expectedSellerId = productSellerId;
+            } else if (expectedSellerId !== productSellerId) {
+                throw new BadRequestException('All products in a single order must belong to the same seller.');
             }
 
             const orderItem = {
@@ -42,16 +55,33 @@ export class OrdersService {
 
             fullItems.push(orderItem);
             totalAmount += product.price * item.quantity;
+            productsToUpdate.push({ product, quantity: item.quantity });
         }
 
-        const createdOrder = new this.orderModel({
-            ...createOrderDto,
-            memberId,
-            items: fullItems,
-            totalAmount,
-        });
+        try {
+            // Apply stock updates
+            for (const update of productsToUpdate) {
+                update.product.stockCount -= update.quantity;
+                if (update.product.stockCount <= 0) {
+                    update.product.stockCount = 0;
+                    update.product.inStock = false;
+                }
+                await update.product.save();
+            }
 
-        return createdOrder.save();
+            const createdOrder = new this.orderModel({
+                ...createOrderDto,
+                sellerId: expectedSellerId,
+                memberId,
+                items: fullItems,
+                totalAmount,
+            });
+
+            return await createdOrder.save();
+        } catch (err) {
+            console.log('Error, creating order:', err.message);
+            throw new BadRequestException(Message.CREATE_FAILED);
+        }
     }
 
     async findMyOrders(memberId: string, query: OrderInquiryDto): Promise<{ list: Order[], total: number }> {
@@ -122,6 +152,29 @@ export class OrdersService {
         if (!order) throw new NotFoundException(Message.NO_DATA_FOUND);
         if (order.sellerId.toString() !== sellerId) {
             throw new ForbiddenException(Message.NOT_ALLOWED_REQUEST);
+        }
+
+        // Prevent modifying an already cancelled order
+        if (order.status === OrderStatus.CANCELLED) {
+            throw new BadRequestException(Message.NOT_ALLOWED_REQUEST);
+        }
+
+        // If order is now being cancelled, restore product stock
+        if (updateDto.status === OrderStatus.CANCELLED) {
+            for (const item of order.items) {
+                try {
+                    const product = await this.productsService.findOne(item.productId);
+                    if (product) {
+                        product.stockCount += item.quantity;
+                        if (product.stockCount > 0) {
+                            product.inStock = true;
+                        }
+                        await product.save();
+                    }
+                } catch (err) {
+                    console.log(`Failed to restore stock for productId: ${item.productId}`, err.message);
+                }
+            }
         }
 
         order.status = updateDto.status;
