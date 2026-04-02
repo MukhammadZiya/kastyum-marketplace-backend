@@ -58,4 +58,44 @@ export class NotificationsService {
         if (!notification) throw new NotFoundException(Message.NO_DATA_FOUND);
         return notification;
     }
+
+    async getAllNotificationsByAdmin(query: NotificationInquiryDto): Promise<{ list: Notification[], total: number }> {
+        const { page, limit, isRead, receiverId } = query;
+        const match: any = {};
+
+        if (isRead === 'true') match.readAt = { $ne: null };
+        if (isRead === 'false') match.readAt = null;
+        if (receiverId) match.receiverId = new Types.ObjectId(receiverId);
+
+        const aggregateResult = await this.notificationModel.aggregate([
+            { $match: match },
+            {
+                $facet: {
+                    list: [
+                        { $sort: { createdAt: -1 } },
+                        { $skip: (page - 1) * limit },
+                        { $limit: limit },
+                        {
+                            $lookup: {
+                                from: 'members',
+                                localField: 'receiverId',
+                                foreignField: '_id',
+                                as: 'receiverId',
+                            },
+                        },
+                        { $unwind: { path: '$receiverId', preserveNullAndEmptyArrays: true } },
+                        { $project: { 'receiverId.password': 0 } },
+                    ],
+                    total: [
+                        { $count: 'count' }
+                    ]
+                }
+            }
+        ]).exec();
+
+        const list = aggregateResult[0].list;
+        const total = aggregateResult[0].total[0]?.count || 0;
+
+        return { list, total };
+    }
 }

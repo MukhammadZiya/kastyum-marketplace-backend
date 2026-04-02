@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, Min, IsString } from 'class-validator';
 
 export class NotificationInquiryDto {
     @Type(() => Number)
@@ -15,4 +15,8 @@ export class NotificationInquiryDto {
     @IsOptional()
     @IsIn(['true', 'false'])
     isRead?: string;
+
+    @IsOptional()
+    @IsString()
+    receiverId?: string;
 }
