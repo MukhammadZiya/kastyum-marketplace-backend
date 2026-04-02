@@ -5,6 +5,8 @@ import { Order, OrderStatus } from './schemas/order.schema';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { Message } from '../../libs/enums/common.enum';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/schemas/notification.schema';
 
 import { ProductsService } from '../products/products.service';
 import { OrderInquiryDto } from './dto/order-inquiry.dto';
@@ -14,6 +16,7 @@ export class OrdersService {
     constructor(
         @InjectModel(Order.name) private orderModel: Model<Order>,
         private readonly productsService: ProductsService,
+        private readonly notificationsService: NotificationsService,
     ) { }
 
     async create(memberId: string, createOrderDto: CreateOrderDto): Promise<Order> {
@@ -77,7 +80,20 @@ export class OrdersService {
                 totalAmount,
             });
 
-            return await createdOrder.save();
+            const savedOrder = await createdOrder.save();
+
+            try {
+                await this.notificationsService.createNotification(
+                    expectedSellerId,
+                    `A new order was placed for ${fullItems.length} items. Total: $${totalAmount}`,
+                    NotificationType.ORDER_NEW,
+                    savedOrder._id.toString()
+                );
+            } catch (notifErr) {
+                console.log('Notification failed:', notifErr.message);
+            }
+
+            return savedOrder;
         } catch (err) {
             console.log('Error, creating order:', err.message);
             throw new BadRequestException(Message.CREATE_FAILED);
@@ -189,6 +205,19 @@ export class OrdersService {
         }
 
         order.status = updateDto.status;
-        return order.save();
+        const savedOrder = await order.save();
+
+        try {
+            await this.notificationsService.createNotification(
+                order.memberId.toString(),
+                `Your order status has been updated to ${updateDto.status}.`,
+                NotificationType.ORDER_UPDATE,
+                order._id.toString()
+            );
+        } catch (notifErr) {
+            console.log('Notification failed:', notifErr.message);
+        }
+
+        return savedOrder;
     }
 }
