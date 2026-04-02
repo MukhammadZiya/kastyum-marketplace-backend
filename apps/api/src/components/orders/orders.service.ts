@@ -102,6 +102,17 @@ export class OrdersService {
         return this.aggregateOrders(match, page, limit);
     }
 
+    async getAllOrdersByAdmin(query: OrderInquiryDto): Promise<{ list: Order[], total: number }> {
+        const { page, limit, status, memberId, sellerId } = query;
+        const match: any = {};
+
+        if (status) match.status = status;
+        if (memberId) match.memberId = new Types.ObjectId(memberId);
+        if (sellerId) match.sellerId = new Types.ObjectId(sellerId);
+
+        return this.aggregateOrders(match, page, limit);
+    }
+
     private async aggregateOrders(match: any, page: number, limit: number): Promise<{ list: Order[], total: number }> {
         const aggregateResult = await this.orderModel.aggregate([
             { $match: match },

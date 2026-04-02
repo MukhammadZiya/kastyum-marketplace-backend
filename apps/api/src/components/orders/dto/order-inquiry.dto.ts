@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, Min, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderStatus } from '../schemas/order.schema';
 
@@ -16,4 +16,12 @@ export class OrderInquiryDto {
     @IsOptional()
     @IsEnum(OrderStatus)
     status?: OrderStatus;
+
+    @IsOptional()
+    @IsString()
+    memberId?: string;
+
+    @IsOptional()
+    @IsString()
+    sellerId?: string;
 }
