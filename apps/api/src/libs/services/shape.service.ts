@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
-import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -18,7 +18,7 @@ export class ShapeService {
             fs.mkdirSync(uploadPath, { recursive: true });
         }
 
-        const fileName = `${uuidv4()}.webp`;
+        const fileName = `${randomUUID()}.webp`;
         const fullPath = path.join(uploadPath, fileName);
 
         await sharp(file.buffer)

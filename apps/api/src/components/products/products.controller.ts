@@ -4,6 +4,7 @@ import { multerOptions } from '../../libs/utils/multer-options';
 import { ShapeService } from '../../libs/services/shape.service';
 import { Message } from '../../libs/enums/common.enum';
 import { ProductsService } from './products.service';
+import { HomeShowcaseService } from './home-showcase.service';
 import { ProductsInquiryDto } from './dto/products-inquiry.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { JwtAuthGuard } from '../../libs/guards/jwt-auth.guard';
@@ -17,6 +18,7 @@ export class ProductsController {
     constructor(
         private readonly productsService: ProductsService,
         private readonly shapeService: ShapeService,
+        private readonly homeShowcaseService: HomeShowcaseService,
     ) { }
 
     @Post('create')
@@ -52,6 +54,11 @@ export class ProductsController {
     @Get('list')
     findAll(@Query() query: ProductsInquiryDto) {
         return this.productsService.findAll(query);
+    }
+
+    @Get('home-showcase')
+    homeShowcase() {
+        return this.homeShowcaseService.getStorefrontPayload();
     }
 
     @Get('detail/:id')

@@ -99,8 +99,12 @@ export class MemberService {
     }
 
     async getMembersByAdmin(query: MemberInquiryDto): Promise<{ list: MemberResponse[], total: number }> {
-        const { page, limit, search } = query;
+        const { page, limit, search, type } = query;
         const match: any = {};
+
+        if (type) {
+            match.type = type;
+        }
 
         if (search) {
             match.$or = [
