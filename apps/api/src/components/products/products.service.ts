@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { OrderStatus } from '../orders/schemas/order.schema';
 import { Product, ProductStatus } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductsInquiryDto } from './dto/products-inquiry.dto';
@@ -232,8 +233,9 @@ export class ProductsService {
 
     async findSellerProducts(sellerId: string, query: ProductsInquiryDto): Promise<{ list: Product[], total: number }> {
         const { page, limit } = query;
+        const sellerOid = new Types.ObjectId(sellerId);
         const match: any = {
-            sellerId: new Types.ObjectId(sellerId),
+            sellerId: sellerOid,
             status: { $ne: ProductStatus.DELETE }
         };
 
@@ -297,6 +299,45 @@ export class ProductsService {
                             },
                         },
                         { $unwind: { path: '$style', preserveNullAndEmptyArrays: true } },
+                        {
+                            $lookup: {
+                                from: 'orders',
+                                let: { productId: '$_id', sid: sellerOid },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ['$sellerId', '$$sid'] },
+                                                    { $ne: ['$status', OrderStatus.CANCELLED] },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    { $unwind: '$items' },
+                                    {
+                                        $match: {
+                                            $expr: { $eq: ['$items.productId', '$$productId'] },
+                                        },
+                                    },
+                                    {
+                                        $group: {
+                                            _id: null,
+                                            sold: { $sum: '$items.quantity' },
+                                        },
+                                    },
+                                ],
+                                as: '_soldAgg',
+                            },
+                        },
+                        {
+                            $addFields: {
+                                soldCount: {
+                                    $ifNull: [{ $arrayElemAt: ['$_soldAgg.sold', 0] }, 0],
+                                },
+                            },
+                        },
+                        { $project: { _soldAgg: 0 } },
                     ],
                     total: [
                         { $count: 'count' }

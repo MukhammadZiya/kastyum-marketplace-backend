@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
     IsArray,
     IsEnum,
@@ -11,6 +11,29 @@ import {
 } from 'class-validator';
 import { ProductStatus, TargetAudience } from '../schemas/product.schema';
 
+function emptyToUndefined({ value }: { value: unknown }) {
+    if (value === '' || value === undefined || value === null) return undefined;
+    return value;
+}
+
+function parseIdArray({ value }: { value: unknown }): string[] | undefined {
+    if (value == null || value === '') return undefined;
+    if (Array.isArray(value)) {
+        return value.filter((v): v is string => typeof v === 'string' && v.length > 0);
+    }
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value) as unknown;
+            if (Array.isArray(parsed)) {
+                return parsed.filter((v): v is string => typeof v === 'string' && v.length > 0);
+            }
+        } catch {
+            return undefined;
+        }
+    }
+    return undefined;
+}
+
 export class ProductVariantStockLineInputDto {
     @IsOptional() @IsMongoId() sizeId?: string;
     @IsOptional() @IsMongoId() colorId?: string;
@@ -19,6 +42,41 @@ export class ProductVariantStockLineInputDto {
     @IsNumber()
     @Min(0)
     quantity: number;
+}
+
+/**
+ * Parse the multipart `variantStock` field (JSON string or already-array) into real
+ * `ProductVariantStockLineInputDto` instances.
+ *
+ * Returning instances (not plain objects) is required: `class-transformer@0.5.1` does NOT
+ * apply the sibling `@Type(() => ProductVariantStockLineInputDto)` recursion when this
+ * `@Transform` returns a brand-new value, and `ValidationPipe({ whitelist: true })` would
+ * then strip every property off the plain rows (so `quantity` would arrive as `undefined`
+ * in the service).
+ */
+function parseVariantStockJson({ value }: { value: unknown }) {
+    if (value == null || value === '') return undefined;
+    let arr: unknown = value;
+    if (typeof value === 'string') {
+        try {
+            arr = JSON.parse(value);
+        } catch {
+            return undefined;
+        }
+    }
+    if (!Array.isArray(arr)) return undefined;
+    return arr.map((row: any) => {
+        const inst = new ProductVariantStockLineInputDto();
+        if (typeof row?.sizeId === 'string' && row.sizeId.trim()) {
+            inst.sizeId = row.sizeId.trim();
+        }
+        if (typeof row?.colorId === 'string' && row.colorId.trim()) {
+            inst.colorId = row.colorId.trim();
+        }
+        const n = Number(row?.quantity);
+        inst.quantity = Number.isFinite(n) ? Math.max(0, Math.floor(n)) : (NaN as unknown as number);
+        return inst;
+    });
 }
 
 export class CreateProductDto {
@@ -38,12 +96,37 @@ export class CreateProductDto {
     @Min(0)
     listPrice?: number;
 
-    @IsOptional() @IsArray() @IsString({ each: true }) colors?: string[];
-    @IsOptional() @IsArray() @IsString({ each: true }) sizes?: string[];
-    @IsOptional() @IsString() brand?: string;
-    @IsOptional() @IsString() material?: string;
-    @IsOptional() @IsString() fit?: string;
-    @IsOptional() @IsString() style?: string;
+    @IsOptional()
+    @Transform(parseIdArray)
+    @IsArray()
+    @IsMongoId({ each: true })
+    colors?: string[];
+
+    @IsOptional()
+    @Transform(parseIdArray)
+    @IsArray()
+    @IsMongoId({ each: true })
+    sizes?: string[];
+
+    @IsOptional()
+    @Transform(emptyToUndefined)
+    @IsMongoId()
+    brand?: string;
+
+    @IsOptional()
+    @Transform(emptyToUndefined)
+    @IsMongoId()
+    material?: string;
+
+    @IsOptional()
+    @Transform(emptyToUndefined)
+    @IsMongoId()
+    fit?: string;
+
+    @IsOptional()
+    @Transform(emptyToUndefined)
+    @IsMongoId()
+    style?: string;
     @IsOptional() @IsArray() @IsString({ each: true }) images?: string[];
 
     @Type(() => Number)
@@ -52,6 +135,7 @@ export class CreateProductDto {
     stockCount: number;
 
     @IsOptional()
+    @Transform(parseVariantStockJson)
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => ProductVariantStockLineInputDto)

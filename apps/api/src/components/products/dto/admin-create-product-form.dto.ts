@@ -48,18 +48,35 @@ function parseIdArray({ value }: { value: unknown }): string[] | undefined {
     return undefined;
 }
 
+/**
+ * Parse multipart `variantStock` (JSON string or array) into real
+ * `ProductVariantStockLineInputDto` instances. Returning instances (not plain objects)
+ * is required so that `ValidationPipe({ whitelist: true })` doesn't strip every
+ * property off the rows — see note in `create-product.dto.ts`.
+ */
 function parseVariantStockJson({ value }: { value: unknown }) {
     if (value == null || value === '') return undefined;
+    let arr: unknown = value;
     if (typeof value === 'string') {
         try {
-            const parsed = JSON.parse(value) as unknown;
-            return Array.isArray(parsed) ? parsed : undefined;
+            arr = JSON.parse(value);
         } catch {
             return undefined;
         }
     }
-    if (Array.isArray(value)) return value;
-    return undefined;
+    if (!Array.isArray(arr)) return undefined;
+    return arr.map((row: any) => {
+        const inst = new ProductVariantStockLineInputDto();
+        if (typeof row?.sizeId === 'string' && row.sizeId.trim()) {
+            inst.sizeId = row.sizeId.trim();
+        }
+        if (typeof row?.colorId === 'string' && row.colorId.trim()) {
+            inst.colorId = row.colorId.trim();
+        }
+        const n = Number(row?.quantity);
+        inst.quantity = Number.isFinite(n) ? Math.max(0, Math.floor(n)) : (NaN as unknown as number);
+        return inst;
+    });
 }
 
 export class AdminCreateProductFormDto {
