@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Get, Param, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { MemberService } from './member.service';
-import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput } from './dto/member.input';
+import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput, TelegramLoginInput } from './dto/member.input';
 import { MemberAuthResponse, MemberResponse } from './dto/member.response';
 import { JwtAuthGuard } from '../../libs/guards/jwt-auth.guard';
 import { CurrentUser } from '../../libs/decorators/current-user.decorator';
@@ -23,6 +23,11 @@ export class MemberController {
     @Post('login')
     async login(@Body() input: LoginInput): Promise<MemberAuthResponse> {
         return this.memberService.login(input);
+    }
+
+    @Post('telegram-login')
+    async telegramLogin(@Body() input: TelegramLoginInput): Promise<MemberAuthResponse> {
+        return this.memberService.telegramLogin(input);
     }
 
     @UseGuards(JwtAuthGuard)

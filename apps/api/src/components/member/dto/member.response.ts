@@ -3,7 +3,8 @@ import { MemberStatus, MemberType } from '../schemas/member.schema';
 export interface MemberResponse {
     _id: string;
     nick: string;
-    email: string;
+    email?: string;
+    telegramId?: string;
     phone?: string;
     image?: string;
     type: MemberType;
@@ -19,6 +20,7 @@ export interface MemberAuthResponse {
 
 export interface TokenPayload {
     sub: string;
-    email: string;
+    email?: string;
+    telegramId?: string;
     type: MemberType;
 }
