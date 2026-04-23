@@ -222,13 +222,24 @@ export class ProductsService {
     }
 
     async update(id: string, updateData: Partial<CreateProductDto>, sellerId: string): Promise<Product> {
-        const product = await this.productModel.findOneAndUpdate(
-            { _id: id, sellerId },
-            updateData,
-            { new: true }
-        ).exec();
+        const product = await this.productModel.findOne({ _id: id, sellerId }).exec();
         if (!product) throw new NotFoundException(Message.UPDATE_FAILED);
-        return product;
+
+        // Merge incoming updates with existing product data to resolve inventory
+        const mergedData = {
+            ...product.toObject(),
+            ...updateData,
+        };
+
+        const inv = this.resolveInventory(mergedData as CreateProductDto);
+        
+        // Update product fields
+        Object.assign(product, updateData);
+        product.variantStock = inv.variantStock;
+        product.stockCount = inv.stockCount;
+        product.inStock = inv.inStock;
+
+        return await product.save();
     }
 
     async findSellerProducts(sellerId: string, query: ProductsInquiryDto): Promise<{ list: Product[], total: number }> {
@@ -394,9 +405,24 @@ export class ProductsService {
     }
 
     async updateProductByAdmin(id: string, updateData: Partial<CreateProductDto>): Promise<Product> {
-        const product = await this.productModel.findByIdAndUpdate(id, updateData, { new: true }).exec();
+        const product = await this.productModel.findById(id).exec();
         if (!product) throw new NotFoundException(Message.UPDATE_FAILED);
-        return product;
+
+        // Merge incoming updates with existing product data to resolve inventory
+        const mergedData = {
+            ...product.toObject(),
+            ...updateData,
+        };
+
+        const inv = this.resolveInventory(mergedData as CreateProductDto);
+
+        // Update product fields
+        Object.assign(product, updateData);
+        product.variantStock = inv.variantStock;
+        product.stockCount = inv.stockCount;
+        product.inStock = inv.inStock;
+
+        return await product.save();
     }
 
     async deleteProductByAdmin(id: string): Promise<void> {

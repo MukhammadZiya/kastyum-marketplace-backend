@@ -106,8 +106,8 @@ export class OrdersService {
                 productImage: product.images[0] || '',
                 price: product.price,
                 quantity: item.quantity,
-                size: item.size,
-                color: item.color,
+                size: item.sizeId,
+                color: item.colorId,
             };
 
             fullItems.push(orderItem);
@@ -246,7 +246,33 @@ export class OrdersService {
                 try {
                     const product = await this.productsService.findOne(item.productId);
                     if (product) {
-                        product.stockCount += item.quantity;
+                        const rows = product.variantStock || [];
+                        const hasVariants = rows.length > 0;
+
+                        if (!hasVariants) {
+                            product.stockCount += item.quantity;
+                        } else {
+                            // Find the specific variant to restore
+                            const line = (rows as any[]).find((r) => {
+                                const rs = r.sizeId?.toString() ?? '';
+                                const rc = r.colorId?.toString() ?? '';
+                                const isId = item.size?.toString() ?? '';
+                                const icId = item.color?.toString() ?? '';
+                                return rs === isId && rc === icId;
+                            });
+
+                            if (line) {
+                                line.quantity += item.quantity;
+                            } else {
+                                // If variant not found in stock (rare), just increment total or ignore?
+                                // Better to add it back to total anyway
+                                product.stockCount += item.quantity;
+                            }
+                            
+                            // Always recalculate total stock from variants to be sure
+                            product.stockCount = rows.reduce((a, r: any) => a + (r.quantity || 0), 0);
+                        }
+                        
                         if (product.stockCount > 0) {
                             product.inStock = true;
                         }

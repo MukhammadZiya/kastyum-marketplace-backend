@@ -1,14 +1,14 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 /** Per size, or per size+color when the product has both. */
 @Schema({ _id: false })
 export class ProductVariantStockLine {
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Size' })
-    sizeId?: MongooseSchema.Types.ObjectId;
+    sizeId?: Types.ObjectId;
 
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Color' })
-    colorId?: MongooseSchema.Types.ObjectId;
+    colorId?: Types.ObjectId;
 
     @Prop({ required: true, default: 0 })
     quantity: number;

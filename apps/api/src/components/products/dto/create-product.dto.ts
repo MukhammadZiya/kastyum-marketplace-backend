@@ -129,10 +129,11 @@ export class CreateProductDto {
     style?: string;
     @IsOptional() @IsArray() @IsString({ each: true }) images?: string[];
 
+    @IsOptional()
     @Type(() => Number)
     @IsNumber()
     @Min(0)
-    stockCount: number;
+    stockCount?: number;
 
     @IsOptional()
     @Transform(parseVariantStockJson)
