@@ -22,4 +22,6 @@ export enum Message {
     SELF_SUBSCRIPTION_DENIED = 'Self subscription is denied!',
     INVALID_TOKEN = 'Invalid token!',
     ATTRIBUTE_TYPE_NOT_FOUND = 'Attribute type not found!',
+    NOT_ENOUGH_STOCK = 'Not enough stock!',
+    INVALID_TELEGRAM_DATA = 'Invalid Telegram data!',
 }

@@ -1,5 +1,19 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
+
+/** Per size, or per size+color when the product has both. */
+@Schema({ _id: false })
+export class ProductVariantStockLine {
+    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Size' })
+    sizeId?: Types.ObjectId;
+
+    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Color' })
+    colorId?: Types.ObjectId;
+
+    @Prop({ required: true, default: 0 })
+    quantity: number;
+}
+export const ProductVariantStockLineSchema = SchemaFactory.createForClass(ProductVariantStockLine);
 
 export enum ProductStatus {
     ACTIVE = 'ACTIVE',
@@ -33,6 +47,10 @@ export class Product extends Document {
     @Prop({ required: true })
     price: number;
 
+    /** Optional “was” price for storefront strikethrough when greater than `price`. */
+    @Prop()
+    listPrice?: number;
+
     @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'Color' }] })
     colors: string[];
 
@@ -56,6 +74,10 @@ export class Product extends Document {
 
     @Prop({ required: true, default: 0 })
     stockCount: number;
+
+    /** When non-empty, stock is tracked per line; `stockCount` is the sum of line quantities. */
+    @Prop({ type: [ProductVariantStockLineSchema], default: [] })
+    variantStock: ProductVariantStockLine[];
 
     @Prop({ default: false })
     inStock: boolean;

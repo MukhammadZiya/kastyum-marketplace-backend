@@ -8,6 +8,7 @@ export class MemberInput {
     @IsEmail()
     email: string;
 
+    @IsOptional()
     @IsString()
     @MinLength(6)
     password?: string;
@@ -77,4 +78,32 @@ export class MemberAdminUpdateInput {
     @IsOptional()
     @IsString()
     image?: string;
+}
+
+export class TelegramLoginInput {
+    @IsNotEmpty()
+    id: number;
+
+    @IsNotEmpty()
+    @IsString()
+    first_name: string;
+
+    @IsOptional()
+    @IsString()
+    last_name?: string;
+
+    @IsOptional()
+    @IsString()
+    username?: string;
+
+    @IsOptional()
+    @IsString()
+    photo_url?: string;
+
+    @IsNotEmpty()
+    auth_date: number;
+
+    @IsNotEmpty()
+    @IsString()
+    hash: string;
 }

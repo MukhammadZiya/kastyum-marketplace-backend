@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
     IsArray,
+    IsBoolean,
     IsEnum,
     IsMongoId,
     IsNumber,
@@ -10,10 +11,23 @@ import {
     ValidateNested,
 } from 'class-validator';
 import { ProductStatus, TargetAudience } from '../schemas/product.schema';
+import { ProductVariantStockLineInputDto } from './create-product.dto';
 
 function emptyToUndefined({ value }: { value: unknown }) {
     if (value === '' || value === undefined || value === null) return undefined;
     return value;
+}
+
+function optionalBoolFromForm({ value }: { value: unknown }): boolean | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (value === true || value === 1) return true;
+    if (value === false || value === 0) return false;
+    if (typeof value === 'string') {
+        const v = value.toLowerCase().trim();
+        if (v === 'true' || v === '1' || v === 'yes' || v === 'on') return true;
+        if (v === 'false' || v === '0' || v === 'no') return false;
+    }
+    return undefined;
 }
 
 function parseIdArray({ value }: { value: unknown }): string[] | undefined {
@@ -34,25 +48,11 @@ function parseIdArray({ value }: { value: unknown }): string[] | undefined {
     return undefined;
 }
 
-export class ProductVariantStockLineInputDto {
-    @IsOptional() @IsMongoId() sizeId?: string;
-    @IsOptional() @IsMongoId() colorId?: string;
-
-    @Type(() => Number)
-    @IsNumber()
-    @Min(0)
-    quantity: number;
-}
-
 /**
- * Parse the multipart `variantStock` field (JSON string or already-array) into real
- * `ProductVariantStockLineInputDto` instances.
- *
- * Returning instances (not plain objects) is required: `class-transformer@0.5.1` does NOT
- * apply the sibling `@Type(() => ProductVariantStockLineInputDto)` recursion when this
- * `@Transform` returns a brand-new value, and `ValidationPipe({ whitelist: true })` would
- * then strip every property off the plain rows (so `quantity` would arrive as `undefined`
- * in the service).
+ * Parse multipart `variantStock` (JSON string or array) into real
+ * `ProductVariantStockLineInputDto` instances. Returning instances (not plain objects)
+ * is required so that `ValidationPipe({ whitelist: true })` doesn't strip every
+ * property off the rows — see note in `create-product.dto.ts`.
  */
 function parseVariantStockJson({ value }: { value: unknown }) {
     if (value == null || value === '') return undefined;
@@ -79,11 +79,22 @@ function parseVariantStockJson({ value }: { value: unknown }) {
     });
 }
 
-export class CreateProductDto {
-    @IsString() title: string;
-    @IsString() description: string;
-    @IsString() modelNumber: string;
-    @IsEnum(TargetAudience) audience: TargetAudience;
+export class AdminCreateProductFormDto {
+    @IsMongoId()
+    sellerId: string;
+
+    @IsString()
+    title: string;
+
+    @IsString()
+    description: string;
+
+    @IsOptional()
+    @IsString()
+    modelNumber?: string;
+
+    @IsEnum(TargetAudience)
+    audience: TargetAudience;
 
     @Type(() => Number)
     @IsNumber()
@@ -91,22 +102,39 @@ export class CreateProductDto {
     price: number;
 
     @IsOptional()
-    @Type(() => Number)
+    @Transform(({ value }) => {
+        if (value === '' || value === undefined || value === null) return undefined;
+        const n = Number(value);
+        return Number.isNaN(n) ? undefined : n;
+    })
     @IsNumber()
     @Min(0)
     listPrice?: number;
 
-    @IsOptional()
-    @Transform(parseIdArray)
-    @IsArray()
-    @IsMongoId({ each: true })
-    colors?: string[];
+    @Type(() => Number)
+    @IsNumber()
+    @Min(0)
+    stockCount: number;
 
     @IsOptional()
     @Transform(parseIdArray)
     @IsArray()
     @IsMongoId({ each: true })
-    sizes?: string[];
+    colorIds?: string[];
+
+    @IsOptional()
+    @Transform(parseIdArray)
+    @IsArray()
+    @IsMongoId({ each: true })
+    sizeIds?: string[];
+
+    /** JSON array: { sizeId?, colorId?, quantity }[] — required when sizeIds or colorIds are set. */
+    @IsOptional()
+    @Transform(parseVariantStockJson)
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ProductVariantStockLineInputDto)
+    variantStock?: ProductVariantStockLineInputDto[];
 
     @IsOptional()
     @Transform(emptyToUndefined)
@@ -127,20 +155,20 @@ export class CreateProductDto {
     @Transform(emptyToUndefined)
     @IsMongoId()
     style?: string;
-    @IsOptional() @IsArray() @IsString({ each: true }) images?: string[];
 
     @IsOptional()
-    @Type(() => Number)
-    @IsNumber()
-    @Min(0)
-    stockCount?: number;
+    @IsEnum(ProductStatus)
+    status?: ProductStatus;
 
+    /** When true, append this product to the storefront “new arrivals” home block (if not full / not duplicate). */
     @IsOptional()
-    @Transform(parseVariantStockJson)
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => ProductVariantStockLineInputDto)
-    variantStock?: ProductVariantStockLineInputDto[];
+    @Transform(optionalBoolFromForm)
+    @IsBoolean()
+    homeShowcaseNewArrivals?: boolean;
 
-    @IsOptional() @IsEnum(ProductStatus) status?: ProductStatus;
+    /** When true, append to the “most purchased / favorites” home block. */
+    @IsOptional()
+    @Transform(optionalBoolFromForm)
+    @IsBoolean()
+    homeShowcaseMostPurchased?: boolean;
 }

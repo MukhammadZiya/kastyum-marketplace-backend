@@ -1,5 +1,6 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { MemberType } from '../schemas/member.schema';
 
 export class MemberInquiryDto {
     @Type(() => Number)
@@ -15,4 +16,8 @@ export class MemberInquiryDto {
     @IsOptional()
     @IsString()
     search?: string;
+
+    @IsOptional()
+    @IsEnum(MemberType)
+    type?: MemberType;
 }

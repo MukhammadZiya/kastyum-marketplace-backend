@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException, BadRequestException, InternalServerE
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuthService } from '../auth/auth.service';
-import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput } from './dto/member.input';
+import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput, TelegramLoginInput } from './dto/member.input';
 import { MemberAuthResponse, MemberResponse } from './dto/member.response';
 import { MemberInquiryDto } from './dto/member-inquiry.dto';
 import { Member, MemberStatus } from './schemas/member.schema';
@@ -65,6 +65,38 @@ export class MemberService {
         return this.authService.generateToken(response);
     }
 
+    async telegramLogin(input: TelegramLoginInput): Promise<MemberAuthResponse> {
+        const isValid = this.authService.verifyTelegramHash(input);
+        if (!isValid) {
+            throw new UnauthorizedException(Message.INVALID_TELEGRAM_DATA);
+        }
+
+        const { id, first_name, last_name, username } = input;
+        const telegramId = id.toString();
+
+        let member = await this.memberModel.findOne({ telegramId }).exec();
+
+        if (!member) {
+            let nick = username || `${first_name}${last_name ? '_' + last_name : ''}`;
+            const existingNick = await this.memberModel.findOne({ nick }).exec();
+            if (existingNick) {
+                nick = `${nick}_${telegramId}`;
+            }
+
+            member = await this.memberModel.create({
+                telegramId,
+                nick,
+                email: `tg_${telegramId}@kastyum.uz`,
+            });
+        } else if (member.status === MemberStatus.BLOCK) {
+            throw new UnauthorizedException(Message.BLOCKED_USER);
+        } else if (member.status === MemberStatus.DELETE) {
+            throw new UnauthorizedException(Message.NO_MEMBER_NICK);
+        }
+
+        return this.authService.generateToken(member);
+    }
+
     async getMemberMe(id: string): Promise<MemberResponse> {
         const result = await this.memberModel.findById(id).exec();
         if (!result || result.status !== MemberStatus.ACTIVE) {
@@ -99,8 +131,12 @@ export class MemberService {
     }
 
     async getMembersByAdmin(query: MemberInquiryDto): Promise<{ list: MemberResponse[], total: number }> {
-        const { page, limit, search } = query;
+        const { page, limit, search, type } = query;
         const match: any = {};
+
+        if (type) {
+            match.type = type;
+        }
 
         if (search) {
             match.$or = [

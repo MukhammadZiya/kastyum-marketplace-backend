@@ -1,21 +1,115 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { OrderStatus } from '../orders/schemas/order.schema';
 import { Product, ProductStatus } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductsInquiryDto } from './dto/products-inquiry.dto';
 import { Message } from '../../libs/enums/common.enum';
 
+type VariantStockDoc = {
+    sizeId?: Types.ObjectId;
+    colorId?: Types.ObjectId;
+    quantity: number;
+};
+
 @Injectable()
 export class ProductsService {
     constructor(@InjectModel(Product.name) private productModel: Model<Product>) { }
 
+    /**
+     * When the product has sizes and/or colors, `variantStock` must list every combination with quantities.
+     * Otherwise a single `stockCount` is used (legacy).
+     */
+    private resolveInventory(dto: CreateProductDto): {
+        variantStock: VariantStockDoc[];
+        stockCount: number;
+        inStock: boolean;
+    } {
+        const sizeIds = [...new Set((dto.sizes ?? []).filter((x) => Types.ObjectId.isValid(x)))];
+        const colorIds = [...new Set((dto.colors ?? []).filter((x) => Types.ObjectId.isValid(x)))];
+        const hasS = sizeIds.length > 0;
+        const hasC = colorIds.length > 0;
+
+        if (!hasS && !hasC) {
+            const q = Math.max(0, Math.floor(Number(dto.stockCount)) || 0);
+            return { variantStock: [], stockCount: q, inStock: q > 0 };
+        }
+
+        const raw = dto.variantStock;
+        if (!raw || !Array.isArray(raw) || raw.length === 0) {
+            throw new BadRequestException(
+                'variantStock is required when the product has sizes or colors (one quantity per size, or per size×color).',
+            );
+        }
+
+        type Exp = { key: string; sizeId?: Types.ObjectId; colorId?: Types.ObjectId };
+        const expected: Exp[] = [];
+        if (hasS && hasC) {
+            for (const s of sizeIds) {
+                for (const c of colorIds) {
+                    expected.push({
+                        key: `${s}:${c}`,
+                        sizeId: new Types.ObjectId(s),
+                        colorId: new Types.ObjectId(c),
+                    });
+                }
+            }
+        } else if (hasS) {
+            for (const s of sizeIds) {
+                expected.push({ key: `${s}:`, sizeId: new Types.ObjectId(s) });
+            }
+        } else {
+            for (const c of colorIds) {
+                expected.push({ key: `:${c}`, colorId: new Types.ObjectId(c) });
+            }
+        }
+
+        const byKey = new Map<string, number>();
+        for (const row of raw) {
+            const s = row.sizeId?.trim();
+            const c = row.colorId?.trim();
+            const key = `${s ?? ''}:${c ?? ''}`;
+            const qty = Math.floor(Number(row.quantity));
+            if (Number.isNaN(qty) || qty < 0) {
+                throw new BadRequestException('Each variant quantity must be a non-negative integer.');
+            }
+            if (!expected.some((e) => e.key === key)) {
+                throw new BadRequestException('variantStock contains an entry that does not match selected sizes/colors.');
+            }
+            if (byKey.has(key)) {
+                throw new BadRequestException('Duplicate variantStock row.');
+            }
+            byKey.set(key, qty);
+        }
+
+        if (byKey.size !== expected.length) {
+            throw new BadRequestException(
+                'Provide exactly one quantity for each size (and each size×color combination when colors are selected).',
+            );
+        }
+
+        const variantStock: VariantStockDoc[] = expected.map((e) => ({
+            sizeId: e.sizeId,
+            colorId: e.colorId,
+            quantity: byKey.get(e.key)!,
+        }));
+
+        const stockCount = variantStock.reduce((a, v) => a + v.quantity, 0);
+        return { variantStock, stockCount, inStock: stockCount > 0 };
+    }
+
     async create(sellerId: string, createProductDto: CreateProductDto): Promise<Product> {
-        const inStock = createProductDto.stockCount > 0;
+        const inv = this.resolveInventory(createProductDto);
+        const { variantStock: _vs, stockCount: _sc, ...rest } = createProductDto as CreateProductDto & {
+            variantStock?: unknown;
+        };
         const createdProduct = new this.productModel({
-            ...createProductDto,
+            ...rest,
             sellerId,
-            inStock,
+            variantStock: inv.variantStock,
+            stockCount: inv.stockCount,
+            inStock: inv.inStock,
         });
         return createdProduct.save();
     }
@@ -128,19 +222,31 @@ export class ProductsService {
     }
 
     async update(id: string, updateData: Partial<CreateProductDto>, sellerId: string): Promise<Product> {
-        const product = await this.productModel.findOneAndUpdate(
-            { _id: id, sellerId },
-            updateData,
-            { new: true }
-        ).exec();
+        const product = await this.productModel.findOne({ _id: id, sellerId }).exec();
         if (!product) throw new NotFoundException(Message.UPDATE_FAILED);
-        return product;
+
+        // Merge incoming updates with existing product data to resolve inventory
+        const mergedData = {
+            ...product.toObject(),
+            ...updateData,
+        };
+
+        const inv = this.resolveInventory(mergedData as CreateProductDto);
+        
+        // Update product fields
+        Object.assign(product, updateData);
+        product.variantStock = inv.variantStock;
+        product.stockCount = inv.stockCount;
+        product.inStock = inv.inStock;
+
+        return await product.save();
     }
 
     async findSellerProducts(sellerId: string, query: ProductsInquiryDto): Promise<{ list: Product[], total: number }> {
         const { page, limit } = query;
+        const sellerOid = new Types.ObjectId(sellerId);
         const match: any = {
-            sellerId: new Types.ObjectId(sellerId),
+            sellerId: sellerOid,
             status: { $ne: ProductStatus.DELETE }
         };
 
@@ -204,6 +310,45 @@ export class ProductsService {
                             },
                         },
                         { $unwind: { path: '$style', preserveNullAndEmptyArrays: true } },
+                        {
+                            $lookup: {
+                                from: 'orders',
+                                let: { productId: '$_id', sid: sellerOid },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: {
+                                                $and: [
+                                                    { $eq: ['$sellerId', '$$sid'] },
+                                                    { $ne: ['$status', OrderStatus.CANCELLED] },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    { $unwind: '$items' },
+                                    {
+                                        $match: {
+                                            $expr: { $eq: ['$items.productId', '$$productId'] },
+                                        },
+                                    },
+                                    {
+                                        $group: {
+                                            _id: null,
+                                            sold: { $sum: '$items.quantity' },
+                                        },
+                                    },
+                                ],
+                                as: '_soldAgg',
+                            },
+                        },
+                        {
+                            $addFields: {
+                                soldCount: {
+                                    $ifNull: [{ $arrayElemAt: ['$_soldAgg.sold', 0] }, 0],
+                                },
+                            },
+                        },
+                        { $project: { _soldAgg: 0 } },
                     ],
                     total: [
                         { $count: 'count' }
@@ -260,9 +405,24 @@ export class ProductsService {
     }
 
     async updateProductByAdmin(id: string, updateData: Partial<CreateProductDto>): Promise<Product> {
-        const product = await this.productModel.findByIdAndUpdate(id, updateData, { new: true }).exec();
+        const product = await this.productModel.findById(id).exec();
         if (!product) throw new NotFoundException(Message.UPDATE_FAILED);
-        return product;
+
+        // Merge incoming updates with existing product data to resolve inventory
+        const mergedData = {
+            ...product.toObject(),
+            ...updateData,
+        };
+
+        const inv = this.resolveInventory(mergedData as CreateProductDto);
+
+        // Update product fields
+        Object.assign(product, updateData);
+        product.variantStock = inv.variantStock;
+        product.stockCount = inv.stockCount;
+        product.inStock = inv.inStock;
+
+        return await product.save();
     }
 
     async deleteProductByAdmin(id: string): Promise<void> {
