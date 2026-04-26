@@ -71,13 +71,12 @@ export class MemberService {
             throw new UnauthorizedException(Message.INVALID_TELEGRAM_DATA);
         }
 
-        const { id, first_name, last_name, username, photo_url } = input;
+        const { id, first_name, last_name, username } = input;
         const telegramId = id.toString();
 
         let member = await this.memberModel.findOne({ telegramId }).exec();
 
         if (!member) {
-            // Check if nick is already taken
             let nick = username || `${first_name}${last_name ? '_' + last_name : ''}`;
             const existingNick = await this.memberModel.findOne({ nick }).exec();
             if (existingNick) {
@@ -88,7 +87,6 @@ export class MemberService {
                 telegramId,
                 nick,
                 email: `tg_${telegramId}@kastyum.uz`,
-                image: photo_url,
             });
         } else if (member.status === MemberStatus.BLOCK) {
             throw new UnauthorizedException(Message.BLOCKED_USER);

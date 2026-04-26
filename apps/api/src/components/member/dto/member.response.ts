@@ -5,6 +5,7 @@ export interface MemberResponse {
     nick: string;
     email?: string;
     telegramId?: string;
+    telegramUsername?: string;
     phone?: string;
     image?: string;
     type: MemberType;
