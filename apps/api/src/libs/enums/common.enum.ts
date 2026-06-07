@@ -17,6 +17,7 @@ export enum Message {
     TOKEN_NOT_EXIST = 'Bearer Token is not provided!',
     ONLY_SPECIFIC_ROLES_ALLOWED = 'Allowed only for members with specific roles!',
     NOT_ALLOWED_REQUEST = 'Not Allowed Request!',
+    WRONG_PORTAL = 'This account cannot sign in to this portal!',
     PROVIDE_ALLOWED_FORMAT = 'Please provide jpg, jpeg or png images!',
     PROVIDE_PRODUCT_IMAGE = 'At least one product image is required!',
     SELF_SUBSCRIPTION_DENIED = 'Self subscription is denied!',

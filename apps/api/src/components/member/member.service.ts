@@ -5,7 +5,7 @@ import { AuthService } from '../auth/auth.service';
 import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput, TelegramLoginInput } from './dto/member.input';
 import { MemberAuthResponse, MemberResponse } from './dto/member.response';
 import { MemberInquiryDto } from './dto/member-inquiry.dto';
-import { Member, MemberStatus } from './schemas/member.schema';
+import { Member, MemberStatus, MemberType } from './schemas/member.schema';
 import { Message } from '../../libs/enums/common.enum';
 import * as bcrypt from 'bcryptjs';
 
@@ -66,6 +66,14 @@ export class MemberService {
     }
 
     async telegramLogin(input: TelegramLoginInput): Promise<MemberAuthResponse> {
+        return this.telegramLoginByType(input, MemberType.USER);
+    }
+
+    async sellerTelegramLogin(input: TelegramLoginInput): Promise<MemberAuthResponse> {
+        return this.telegramLoginByType(input, MemberType.SELLER);
+    }
+
+    private async telegramLoginByType(input: TelegramLoginInput, type: MemberType): Promise<MemberAuthResponse> {
         const isValid = this.authService.verifyTelegramHash(input);
         if (!isValid) {
             throw new UnauthorizedException(Message.INVALID_TELEGRAM_DATA);
@@ -86,12 +94,15 @@ export class MemberService {
             member = await this.memberModel.create({
                 telegramId,
                 nick,
-                email: `tg_${telegramId}@kastyum.uz`,
+                email: `tg_${telegramId}_${type.toLowerCase()}@kastyum.uz`,
+                type,
             });
         } else if (member.status === MemberStatus.BLOCK) {
             throw new UnauthorizedException(Message.BLOCKED_USER);
         } else if (member.status === MemberStatus.DELETE) {
             throw new UnauthorizedException(Message.NO_MEMBER_NICK);
+        } else if (member.type !== type) {
+            throw new UnauthorizedException(Message.WRONG_PORTAL);
         }
 
         return this.authService.generateToken(member);

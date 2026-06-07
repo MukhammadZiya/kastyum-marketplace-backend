@@ -30,6 +30,11 @@ export class MemberController {
         return this.memberService.telegramLogin(input);
     }
 
+    @Post('seller/telegram-login')
+    async sellerTelegramLogin(@Body() input: TelegramLoginInput): Promise<MemberAuthResponse> {
+        return this.memberService.sellerTelegramLogin(input);
+    }
+
     @UseGuards(JwtAuthGuard)
     @Get('me')
     async getMemberMe(@CurrentUser('sub') id: string): Promise<MemberResponse> {
