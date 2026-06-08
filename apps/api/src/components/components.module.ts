@@ -5,6 +5,7 @@ import { OrdersModule } from './orders/orders.module';
 import { AuthModule } from './auth/auth.module';
 import { MemberModule } from './member/member.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
     imports: [
@@ -14,6 +15,7 @@ import { NotificationsModule } from './notifications/notifications.module';
         ProductsModule,
         OrdersModule,
         NotificationsModule,
+        ReviewsModule,
     ],
 })
 export class ComponentsModule { }
