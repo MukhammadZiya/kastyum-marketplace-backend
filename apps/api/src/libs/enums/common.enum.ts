@@ -18,6 +18,8 @@ export enum Message {
     ONLY_SPECIFIC_ROLES_ALLOWED = 'Allowed only for members with specific roles!',
     NOT_ALLOWED_REQUEST = 'Not Allowed Request!',
     WRONG_PORTAL = 'This account cannot sign in to this portal!',
+    SELLER_APPLICATION_UNDER_REVIEW = 'Your seller application is under review. We will contact you soon.',
+    SELLER_APPLICATION_APPROVED_REQUIRED = 'Your seller application must be approved before you can sign in.',
     PROVIDE_ALLOWED_FORMAT = 'Please provide jpg, jpeg or png images!',
     PROVIDE_PRODUCT_IMAGE = 'At least one product image is required!',
     SELF_SUBSCRIPTION_DENIED = 'Self subscription is denied!',
