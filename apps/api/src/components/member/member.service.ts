@@ -185,11 +185,11 @@ export class MemberService {
             inline_keyboard: [[
                 {
                     text: 'Approve',
-                    url: this.buildSellerReviewUrl(memberId, 'approve'),
+                    callback_data: `seller_review:approve:${memberId}`,
                 },
                 {
                     text: 'Decline',
-                    url: this.buildSellerReviewUrl(memberId, 'decline'),
+                    callback_data: `seller_review:decline:${memberId}`,
                 },
             ]],
         };
@@ -227,7 +227,7 @@ export class MemberService {
             throw new BadRequestException(Message.INVALID_TOKEN);
         }
 
-        const status = action === 'approve' ? MemberStatus.ACTIVE : MemberStatus.DELETE;
+        const status = action === 'approve' ? MemberStatus.ACTIVE : MemberStatus.BLOCK;
         const result = await this.memberModel
             .findOneAndUpdate(
                 { _id: id, type: MemberType.SELLER, status: MemberStatus.PENDING },
@@ -242,7 +242,86 @@ export class MemberService {
 
         return action === 'approve'
             ? `Approved seller: ${result.nick}. They can now sign in.`
-            : `Declined seller: ${result.nick}.`;
+            : `Declined seller: ${result.nick}. Seller status is paused.`;
+    }
+
+    async handleSellerReviewTelegramUpdate(update: any, secret: string): Promise<{ ok: true }> {
+        const expectedSecret = process.env.TELEGRAM_REVIEW_SECRET || process.env.TELEGRAM_BOT_TOKEN;
+        if (expectedSecret && secret !== expectedSecret) {
+            return { ok: true };
+        }
+
+        const callbackQuery = update?.callback_query;
+        const callbackData = callbackQuery?.data;
+
+        if (!callbackQuery?.id || typeof callbackData !== 'string') {
+            return { ok: true };
+        }
+
+        const [scope, action, memberId] = callbackData.split(':');
+        if (scope !== 'seller_review' || (action !== 'approve' && action !== 'decline') || !memberId) {
+            return { ok: true };
+        }
+
+        const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+        const callbackChatId = callbackQuery.message?.chat?.id?.toString();
+        if (adminChatId && callbackChatId !== adminChatId) {
+            await this.telegramNotifierService.answerCallbackQuery(callbackQuery.id, 'Only the admin chat can review seller applications.');
+            return { ok: true };
+        }
+
+        const status = action === 'approve' ? MemberStatus.ACTIVE : MemberStatus.BLOCK;
+        const result = await this.memberModel
+            .findOneAndUpdate(
+                { _id: memberId, type: MemberType.SELLER, status: MemberStatus.PENDING },
+                { status },
+                { new: true },
+            )
+            .exec();
+
+        if (!result) {
+            await this.telegramNotifierService.answerCallbackQuery(callbackQuery.id, 'This seller application is already reviewed.');
+            return { ok: true };
+        }
+
+        const escapedStore = this.escapeTelegramHtml(result.nick);
+        const reviewedText = action === 'approve'
+            ? [
+                '<b>iBerry seller application approved</b>',
+                `Store: ${escapedStore}`,
+                `Email: ${this.escapeTelegramHtml(result.email)}`,
+                result.phone ? `Phone: ${this.escapeTelegramHtml(result.phone)}` : null,
+                `Status: ${MemberStatus.ACTIVE}`,
+            ].filter(Boolean).join('\n')
+            : [
+                '<b>iBerry seller application declined</b>',
+                `Store: ${escapedStore}`,
+                `Email: ${this.escapeTelegramHtml(result.email)}`,
+                result.phone ? `Phone: ${this.escapeTelegramHtml(result.phone)}` : null,
+                `Status: ${MemberStatus.BLOCK}`,
+            ].filter(Boolean).join('\n');
+
+        await this.telegramNotifierService.answerCallbackQuery(
+            callbackQuery.id,
+            action === 'approve' ? 'Seller approved.' : 'Seller declined.',
+        );
+
+        if (callbackQuery.message?.chat?.id && callbackQuery.message?.message_id) {
+            await this.telegramNotifierService.editMessageText(
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                reviewedText,
+            );
+        }
+
+        if (action === 'approve') {
+            await this.telegramNotifierService.sendAdminMessage([
+                '<b>Seller approved</b>',
+                `Store: ${escapedStore}`,
+            ].join('\n'));
+        }
+
+        return { ok: true };
     }
 
     async getMemberMe(id: string): Promise<MemberResponse> {

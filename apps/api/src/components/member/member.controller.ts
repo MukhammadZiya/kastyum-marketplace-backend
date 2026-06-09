@@ -34,6 +34,14 @@ export class MemberController {
         return this.memberService.reviewSellerApplication(id, action, token);
     }
 
+    @Post('seller/telegram-review')
+    async handleSellerTelegramReview(
+        @Body() update: any,
+        @Query('secret') secret: string,
+    ): Promise<{ ok: true }> {
+        return this.memberService.handleSellerReviewTelegramUpdate(update, secret);
+    }
+
     @Post('login')
     async login(@Body() input: LoginInput): Promise<MemberAuthResponse> {
         return this.memberService.login(input);
