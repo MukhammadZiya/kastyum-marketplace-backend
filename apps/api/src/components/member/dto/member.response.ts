@@ -19,6 +19,12 @@ export interface MemberAuthResponse {
     accessToken: string;
 }
 
+export interface SellerApplicationResponse {
+    status: MemberStatus.PENDING;
+    message: string;
+    member: MemberResponse;
+}
+
 export interface TokenPayload {
     sub: string;
     email?: string;

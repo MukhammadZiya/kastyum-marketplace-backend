@@ -9,6 +9,7 @@ export enum MemberType {
 
 export enum MemberStatus {
     ACTIVE = 'ACTIVE',
+    PENDING = 'PENDING',
     BLOCK = 'BLOCK',
     DELETE = 'DELETE',
 }

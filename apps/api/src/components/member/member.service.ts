@@ -3,20 +3,27 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuthService } from '../auth/auth.service';
 import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput, TelegramLoginInput } from './dto/member.input';
-import { MemberAuthResponse, MemberResponse } from './dto/member.response';
+import { MemberAuthResponse, MemberResponse, SellerApplicationResponse } from './dto/member.response';
 import { MemberInquiryDto } from './dto/member-inquiry.dto';
-import { Member, MemberStatus } from './schemas/member.schema';
+import { Member, MemberStatus, MemberType } from './schemas/member.schema';
 import { Message } from '../../libs/enums/common.enum';
+import { TelegramNotifierService } from '../../libs/services/telegram-notifier.service';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class MemberService {
     constructor(
         @InjectModel(Member.name) private readonly memberModel: Model<Member>,
         private readonly authService: AuthService,
+        private readonly telegramNotifierService: TelegramNotifierService,
     ) { }
 
     async signup(input: MemberInput): Promise<MemberAuthResponse> {
+        if (input.type === MemberType.SELLER) {
+            throw new BadRequestException(Message.SELLER_APPLICATION_APPROVED_REQUIRED);
+        }
+
         const existingNick = await this.memberModel.findOne({ nick: input.nick });
         if (existingNick) {
             throw new BadRequestException(Message.USED_NICK);
@@ -39,8 +46,64 @@ export class MemberService {
         }
 
         try {
-            const result = await this.memberModel.create(input);
+            const result = await this.memberModel.create({ ...input, type: MemberType.USER });
             return this.authService.generateToken(result);
+        } catch (err: any) {
+            throw new BadRequestException(Message.CREATE_FAILED);
+        }
+    }
+
+    async applySeller(input: MemberInput): Promise<SellerApplicationResponse> {
+        const existingNick = await this.memberModel.findOne({ nick: input.nick });
+        if (existingNick) {
+            if (existingNick.type === MemberType.SELLER && existingNick.status === MemberStatus.PENDING) {
+                throw new BadRequestException(Message.SELLER_APPLICATION_UNDER_REVIEW);
+            }
+            throw new BadRequestException(Message.USED_NICK);
+        }
+
+        const existingEmail = await this.memberModel.findOne({ email: input.email });
+        if (existingEmail) {
+            if (existingEmail.type === MemberType.SELLER && existingEmail.status === MemberStatus.PENDING) {
+                throw new BadRequestException(Message.SELLER_APPLICATION_UNDER_REVIEW);
+            }
+            throw new BadRequestException(Message.USED_EMAIL);
+        }
+
+        if (input.phone) {
+            const existingPhone = await this.memberModel.findOne({ phone: input.phone });
+            if (existingPhone) {
+                if (existingPhone.type === MemberType.SELLER && existingPhone.status === MemberStatus.PENDING) {
+                    throw new BadRequestException(Message.SELLER_APPLICATION_UNDER_REVIEW);
+                }
+                throw new BadRequestException(Message.USED_PHONE);
+            }
+        }
+
+        const password = input.password ? await bcrypt.hash(input.password, 10) : undefined;
+
+        try {
+            const result = await this.memberModel.create({
+                ...input,
+                password,
+                type: MemberType.SELLER,
+                status: MemberStatus.PENDING,
+            });
+
+            await this.telegramNotifierService.sendAdminMessage([
+                '<b>New iBerry seller application</b>',
+                `Store: ${this.escapeTelegramHtml(result.nick)}`,
+                `Email: ${this.escapeTelegramHtml(result.email)}`,
+                result.phone ? `Phone: ${this.escapeTelegramHtml(result.phone)}` : null,
+                `Member ID: ${result._id}`,
+                'Review this seller from the buttons below.',
+            ].filter(Boolean).join('\n'), this.buildSellerReviewKeyboard(result._id.toString()));
+
+            return {
+                status: MemberStatus.PENDING,
+                message: Message.SELLER_APPLICATION_UNDER_REVIEW,
+                member: result as any,
+            };
         } catch (err: any) {
             throw new BadRequestException(Message.CREATE_FAILED);
         }
@@ -57,6 +120,8 @@ export class MemberService {
             throw new InternalServerErrorException(Message.NO_MEMBER_NICK);
         } else if (response.status === MemberStatus.BLOCK) {
             throw new InternalServerErrorException(Message.BLOCKED_USER);
+        } else if (response.status === MemberStatus.PENDING) {
+            throw new UnauthorizedException(Message.SELLER_APPLICATION_APPROVED_REQUIRED);
         }
 
         const isMatch = await bcrypt.compare(password, response.password!);
@@ -66,6 +131,14 @@ export class MemberService {
     }
 
     async telegramLogin(input: TelegramLoginInput): Promise<MemberAuthResponse> {
+        return this.telegramLoginByType(input, MemberType.USER);
+    }
+
+    async sellerTelegramLogin(input: TelegramLoginInput): Promise<MemberAuthResponse> {
+        throw new BadRequestException(Message.SELLER_APPLICATION_APPROVED_REQUIRED);
+    }
+
+    private async telegramLoginByType(input: TelegramLoginInput, type: MemberType): Promise<MemberAuthResponse> {
         const isValid = this.authService.verifyTelegramHash(input);
         if (!isValid) {
             throw new UnauthorizedException(Message.INVALID_TELEGRAM_DATA);
@@ -86,15 +159,169 @@ export class MemberService {
             member = await this.memberModel.create({
                 telegramId,
                 nick,
-                email: `tg_${telegramId}@kastyum.uz`,
+                email: `tg_${telegramId}_${type.toLowerCase()}@kastyum.uz`,
+                type,
             });
         } else if (member.status === MemberStatus.BLOCK) {
             throw new UnauthorizedException(Message.BLOCKED_USER);
         } else if (member.status === MemberStatus.DELETE) {
             throw new UnauthorizedException(Message.NO_MEMBER_NICK);
+        } else if (member.type !== type) {
+            throw new UnauthorizedException(Message.WRONG_PORTAL);
         }
 
         return this.authService.generateToken(member);
+    }
+
+    private escapeTelegramHtml(value: string): string {
+        return value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    private buildSellerReviewKeyboard(memberId: string): Record<string, unknown> {
+        return {
+            inline_keyboard: [[
+                {
+                    text: 'Approve',
+                    callback_data: `seller_review:approve:${memberId}`,
+                },
+                {
+                    text: 'Decline',
+                    callback_data: `seller_review:decline:${memberId}`,
+                },
+            ]],
+        };
+    }
+
+    private buildSellerReviewUrl(memberId: string, action: 'approve' | 'decline'): string {
+        const baseUrl = process.env.API_PUBLIC_URL || `http://127.0.0.1:${process.env.PORT ?? 3000}`;
+        const token = this.signSellerReview(memberId, action);
+        return `${baseUrl.replace(/\/$/, '')}/member/seller/review/${memberId}/${action}?token=${token}`;
+    }
+
+    private signSellerReview(memberId: string, action: string): string {
+        const secret = process.env.TELEGRAM_REVIEW_SECRET || process.env.TELEGRAM_BOT_TOKEN || 'iberry-local-review';
+        return crypto
+            .createHmac('sha256', secret)
+            .update(`${memberId}:${action}`)
+            .digest('hex');
+    }
+
+    async reviewSellerApplication(id: string, action: 'approve' | 'decline', token: string): Promise<string> {
+        if (action !== 'approve' && action !== 'decline') {
+            throw new BadRequestException(Message.BAD_REQUEST);
+        }
+
+        if (!token) {
+            throw new BadRequestException(Message.INVALID_TOKEN);
+        }
+
+        const expectedToken = this.signSellerReview(id, action);
+        const isValidToken =
+            token.length === expectedToken.length &&
+            crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken));
+
+        if (!isValidToken) {
+            throw new BadRequestException(Message.INVALID_TOKEN);
+        }
+
+        const status = action === 'approve' ? MemberStatus.ACTIVE : MemberStatus.BLOCK;
+        const result = await this.memberModel
+            .findOneAndUpdate(
+                { _id: id, type: MemberType.SELLER, status: MemberStatus.PENDING },
+                { status },
+                { new: true },
+            )
+            .exec();
+
+        if (!result) {
+            return 'This seller application is already reviewed or no longer exists.';
+        }
+
+        return action === 'approve'
+            ? `Approved seller: ${result.nick}. They can now sign in.`
+            : `Declined seller: ${result.nick}. Seller status is paused.`;
+    }
+
+    async handleSellerReviewTelegramUpdate(update: any, secret: string): Promise<{ ok: true }> {
+        const expectedSecret = process.env.TELEGRAM_REVIEW_SECRET || process.env.TELEGRAM_BOT_TOKEN;
+        if (expectedSecret && secret !== expectedSecret) {
+            return { ok: true };
+        }
+
+        const callbackQuery = update?.callback_query;
+        const callbackData = callbackQuery?.data;
+
+        if (!callbackQuery?.id || typeof callbackData !== 'string') {
+            return { ok: true };
+        }
+
+        const [scope, action, memberId] = callbackData.split(':');
+        if (scope !== 'seller_review' || (action !== 'approve' && action !== 'decline') || !memberId) {
+            return { ok: true };
+        }
+
+        const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+        const callbackChatId = callbackQuery.message?.chat?.id?.toString();
+        if (adminChatId && callbackChatId !== adminChatId) {
+            await this.telegramNotifierService.answerCallbackQuery(callbackQuery.id, 'Only the admin chat can review seller applications.');
+            return { ok: true };
+        }
+
+        const status = action === 'approve' ? MemberStatus.ACTIVE : MemberStatus.BLOCK;
+        const result = await this.memberModel
+            .findOneAndUpdate(
+                { _id: memberId, type: MemberType.SELLER, status: MemberStatus.PENDING },
+                { status },
+                { new: true },
+            )
+            .exec();
+
+        if (!result) {
+            await this.telegramNotifierService.answerCallbackQuery(callbackQuery.id, 'This seller application is already reviewed.');
+            return { ok: true };
+        }
+
+        const escapedStore = this.escapeTelegramHtml(result.nick);
+        const reviewedText = action === 'approve'
+            ? [
+                '<b>iBerry seller application approved</b>',
+                `Store: ${escapedStore}`,
+                `Email: ${this.escapeTelegramHtml(result.email)}`,
+                result.phone ? `Phone: ${this.escapeTelegramHtml(result.phone)}` : null,
+                `Status: ${MemberStatus.ACTIVE}`,
+            ].filter(Boolean).join('\n')
+            : [
+                '<b>iBerry seller application declined</b>',
+                `Store: ${escapedStore}`,
+                `Email: ${this.escapeTelegramHtml(result.email)}`,
+                result.phone ? `Phone: ${this.escapeTelegramHtml(result.phone)}` : null,
+                `Status: ${MemberStatus.BLOCK}`,
+            ].filter(Boolean).join('\n');
+
+        await this.telegramNotifierService.answerCallbackQuery(
+            callbackQuery.id,
+            action === 'approve' ? 'Seller approved.' : 'Seller declined.',
+        );
+
+        if (callbackQuery.message?.chat?.id && callbackQuery.message?.message_id) {
+            await this.telegramNotifierService.editMessageText(
+                callbackQuery.message.chat.id,
+                callbackQuery.message.message_id,
+                reviewedText,
+            );
+        }
+
+        if (action === 'approve') {
+            await this.telegramNotifierService.sendAdminMessage([
+                '<b>Seller approved</b>',
+                `Store: ${escapedStore}`,
+            ].join('\n'));
+        }
+
+        return { ok: true };
     }
 
     async getMemberMe(id: string): Promise<MemberResponse> {

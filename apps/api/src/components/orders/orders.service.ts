@@ -172,6 +172,20 @@ export class OrdersService {
         return this.aggregateOrders(match, page, limit);
     }
 
+    async memberHasPurchasedProduct(memberId: string, productId: string): Promise<boolean> {
+        if (!Types.ObjectId.isValid(memberId) || !Types.ObjectId.isValid(productId)) {
+            return false;
+        }
+
+        const order = await this.orderModel.exists({
+            memberId,
+            status: { $ne: OrderStatus.CANCELLED },
+            'items.productId': productId,
+        });
+
+        return Boolean(order);
+    }
+
     async getAllOrdersByAdmin(query: OrderInquiryDto): Promise<{ list: Order[], total: number }> {
         const { page, limit, status, memberId, sellerId } = query;
         const match: any = {};
