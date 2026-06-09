@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Query, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { MemberService } from './member.service';
 import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput, TelegramLoginInput } from './dto/member.input';
 import { MemberAuthResponse, MemberResponse, SellerApplicationResponse } from './dto/member.response';
@@ -23,6 +23,15 @@ export class MemberController {
     @Post('seller/apply')
     async applySeller(@Body() input: MemberInput): Promise<SellerApplicationResponse> {
         return this.memberService.applySeller(input);
+    }
+
+    @Get('seller/review/:id/:action')
+    async reviewSellerApplication(
+        @Param('id') id: string,
+        @Param('action') action: 'approve' | 'decline',
+        @Query('token') token: string,
+    ): Promise<string> {
+        return this.memberService.reviewSellerApplication(id, action, token);
     }
 
     @Post('login')

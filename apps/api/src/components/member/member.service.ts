@@ -9,6 +9,7 @@ import { Member, MemberStatus, MemberType } from './schemas/member.schema';
 import { Message } from '../../libs/enums/common.enum';
 import { TelegramNotifierService } from '../../libs/services/telegram-notifier.service';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class MemberService {
@@ -95,8 +96,8 @@ export class MemberService {
                 `Email: ${this.escapeTelegramHtml(result.email)}`,
                 result.phone ? `Phone: ${this.escapeTelegramHtml(result.phone)}` : null,
                 `Member ID: ${result._id}`,
-                'Review this seller in the admin panel and set status to ACTIVE if approved.',
-            ].filter(Boolean).join('\n'));
+                'Review this seller from the buttons below.',
+            ].filter(Boolean).join('\n'), this.buildSellerReviewKeyboard(result._id.toString()));
 
             return {
                 status: MemberStatus.PENDING,
@@ -177,6 +178,71 @@ export class MemberService {
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
+    }
+
+    private buildSellerReviewKeyboard(memberId: string): Record<string, unknown> {
+        return {
+            inline_keyboard: [[
+                {
+                    text: 'Approve',
+                    url: this.buildSellerReviewUrl(memberId, 'approve'),
+                },
+                {
+                    text: 'Decline',
+                    url: this.buildSellerReviewUrl(memberId, 'decline'),
+                },
+            ]],
+        };
+    }
+
+    private buildSellerReviewUrl(memberId: string, action: 'approve' | 'decline'): string {
+        const baseUrl = process.env.API_PUBLIC_URL || `http://127.0.0.1:${process.env.PORT ?? 3000}`;
+        const token = this.signSellerReview(memberId, action);
+        return `${baseUrl.replace(/\/$/, '')}/member/seller/review/${memberId}/${action}?token=${token}`;
+    }
+
+    private signSellerReview(memberId: string, action: string): string {
+        const secret = process.env.TELEGRAM_REVIEW_SECRET || process.env.TELEGRAM_BOT_TOKEN || 'iberry-local-review';
+        return crypto
+            .createHmac('sha256', secret)
+            .update(`${memberId}:${action}`)
+            .digest('hex');
+    }
+
+    async reviewSellerApplication(id: string, action: 'approve' | 'decline', token: string): Promise<string> {
+        if (action !== 'approve' && action !== 'decline') {
+            throw new BadRequestException(Message.BAD_REQUEST);
+        }
+
+        if (!token) {
+            throw new BadRequestException(Message.INVALID_TOKEN);
+        }
+
+        const expectedToken = this.signSellerReview(id, action);
+        const isValidToken =
+            token.length === expectedToken.length &&
+            crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken));
+
+        if (!isValidToken) {
+            throw new BadRequestException(Message.INVALID_TOKEN);
+        }
+
+        const status = action === 'approve' ? MemberStatus.ACTIVE : MemberStatus.DELETE;
+        const result = await this.memberModel
+            .findOneAndUpdate(
+                { _id: id, type: MemberType.SELLER, status: MemberStatus.PENDING },
+                { status },
+                { new: true },
+            )
+            .exec();
+
+        if (!result) {
+            return 'This seller application is already reviewed or no longer exists.';
+        }
+
+        return action === 'approve'
+            ? `Approved seller: ${result.nick}. They can now sign in.`
+            : `Declined seller: ${result.nick}.`;
     }
 
     async getMemberMe(id: string): Promise<MemberResponse> {
