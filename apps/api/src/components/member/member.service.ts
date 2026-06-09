@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuthService } from '../auth/auth.service';
@@ -13,10 +14,13 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class MemberService {
+    private readonly logger = new Logger(MemberService.name);
+
     constructor(
         @InjectModel(Member.name) private readonly memberModel: Model<Member>,
         private readonly authService: AuthService,
         private readonly telegramNotifierService: TelegramNotifierService,
+        private readonly configService: ConfigService,
     ) { }
 
     async signup(input: MemberInput): Promise<MemberAuthResponse> {
@@ -57,7 +61,12 @@ export class MemberService {
         const existingNick = await this.memberModel.findOne({ nick: input.nick });
         if (existingNick) {
             if (existingNick.type === MemberType.SELLER && existingNick.status === MemberStatus.PENDING) {
-                throw new BadRequestException(Message.SELLER_APPLICATION_UNDER_REVIEW);
+                await this.notifySellerApplication(existingNick);
+                return {
+                    status: MemberStatus.PENDING,
+                    message: Message.SELLER_APPLICATION_UNDER_REVIEW,
+                    member: existingNick as any,
+                };
             }
             throw new BadRequestException(Message.USED_NICK);
         }
@@ -65,7 +74,12 @@ export class MemberService {
         const existingEmail = await this.memberModel.findOne({ email: input.email });
         if (existingEmail) {
             if (existingEmail.type === MemberType.SELLER && existingEmail.status === MemberStatus.PENDING) {
-                throw new BadRequestException(Message.SELLER_APPLICATION_UNDER_REVIEW);
+                await this.notifySellerApplication(existingEmail);
+                return {
+                    status: MemberStatus.PENDING,
+                    message: Message.SELLER_APPLICATION_UNDER_REVIEW,
+                    member: existingEmail as any,
+                };
             }
             throw new BadRequestException(Message.USED_EMAIL);
         }
@@ -74,7 +88,12 @@ export class MemberService {
             const existingPhone = await this.memberModel.findOne({ phone: input.phone });
             if (existingPhone) {
                 if (existingPhone.type === MemberType.SELLER && existingPhone.status === MemberStatus.PENDING) {
-                    throw new BadRequestException(Message.SELLER_APPLICATION_UNDER_REVIEW);
+                    await this.notifySellerApplication(existingPhone);
+                    return {
+                        status: MemberStatus.PENDING,
+                        message: Message.SELLER_APPLICATION_UNDER_REVIEW,
+                        member: existingPhone as any,
+                    };
                 }
                 throw new BadRequestException(Message.USED_PHONE);
             }
@@ -90,14 +109,7 @@ export class MemberService {
                 status: MemberStatus.PENDING,
             });
 
-            await this.telegramNotifierService.sendAdminMessage([
-                '<b>New iBerry seller application</b>',
-                `Store: ${this.escapeTelegramHtml(result.nick)}`,
-                `Email: ${this.escapeTelegramHtml(result.email)}`,
-                result.phone ? `Phone: ${this.escapeTelegramHtml(result.phone)}` : null,
-                `Member ID: ${result._id}`,
-                'Review this seller from the buttons below.',
-            ].filter(Boolean).join('\n'), this.buildSellerReviewKeyboard(result._id.toString()));
+            await this.notifySellerApplication(result);
 
             return {
                 status: MemberStatus.PENDING,
@@ -107,6 +119,17 @@ export class MemberService {
         } catch (err: any) {
             throw new BadRequestException(Message.CREATE_FAILED);
         }
+    }
+
+    private async notifySellerApplication(member: Member): Promise<void> {
+        await this.telegramNotifierService.sendAdminMessage([
+            '<b>New iBerry seller application</b>',
+            `Store: ${this.escapeTelegramHtml(member.nick)}`,
+            `Email: ${this.escapeTelegramHtml(member.email)}`,
+            member.phone ? `Phone: ${this.escapeTelegramHtml(member.phone)}` : null,
+            `Member ID: ${member._id}`,
+            'Review this seller from the buttons below.',
+        ].filter(Boolean).join('\n'), this.buildSellerReviewKeyboard(member._id.toString()));
     }
 
     async login(input: LoginInput): Promise<MemberAuthResponse> {
@@ -196,13 +219,13 @@ export class MemberService {
     }
 
     private buildSellerReviewUrl(memberId: string, action: 'approve' | 'decline'): string {
-        const baseUrl = process.env.API_PUBLIC_URL || `http://127.0.0.1:${process.env.PORT ?? 3000}`;
+        const baseUrl = this.configService.get<string>('API_PUBLIC_URL') || `http://127.0.0.1:${this.configService.get<string>('PORT') ?? 3000}`;
         const token = this.signSellerReview(memberId, action);
         return `${baseUrl.replace(/\/$/, '')}/member/seller/review/${memberId}/${action}?token=${token}`;
     }
 
     private signSellerReview(memberId: string, action: string): string {
-        const secret = process.env.TELEGRAM_REVIEW_SECRET || process.env.TELEGRAM_BOT_TOKEN || 'iberry-local-review';
+        const secret = this.getTelegramReviewSecret() || 'iberry-local-review';
         return crypto
             .createHmac('sha256', secret)
             .update(`${memberId}:${action}`)
@@ -246,8 +269,9 @@ export class MemberService {
     }
 
     async handleSellerReviewTelegramUpdate(update: any, secret: string): Promise<{ ok: true }> {
-        const expectedSecret = process.env.TELEGRAM_REVIEW_SECRET || process.env.TELEGRAM_BOT_TOKEN;
+        const expectedSecret = this.getTelegramReviewSecret();
         if (expectedSecret && secret !== expectedSecret) {
+            this.logger.warn('Telegram seller review callback skipped: invalid review secret.');
             return { ok: true };
         }
 
@@ -263,9 +287,12 @@ export class MemberService {
             return { ok: true };
         }
 
-        const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+        this.logger.log(`Telegram seller review callback received: ${action} ${memberId}`);
+
+        const adminChatId = this.configService.get<string>('TELEGRAM_ADMIN_CHAT_ID');
         const callbackChatId = callbackQuery.message?.chat?.id?.toString();
         if (adminChatId && callbackChatId !== adminChatId) {
+            this.logger.warn(`Telegram seller review callback rejected: chat ${callbackChatId ?? 'unknown'} is not admin chat.`);
             await this.telegramNotifierService.answerCallbackQuery(callbackQuery.id, 'Only the admin chat can review seller applications.');
             return { ok: true };
         }
@@ -280,9 +307,12 @@ export class MemberService {
             .exec();
 
         if (!result) {
+            this.logger.warn(`Telegram seller review callback found no pending seller: ${memberId}`);
             await this.telegramNotifierService.answerCallbackQuery(callbackQuery.id, 'This seller application is already reviewed.');
             return { ok: true };
         }
+
+        this.logger.log(`Seller application ${memberId} set to ${status}.`);
 
         const escapedStore = this.escapeTelegramHtml(result.nick);
         const reviewedText = action === 'approve'
@@ -322,6 +352,11 @@ export class MemberService {
         }
 
         return { ok: true };
+    }
+
+    private getTelegramReviewSecret(): string | undefined {
+        return this.configService.get<string>('TELEGRAM_REVIEW_SECRET')
+            || this.configService.get<string>('TELEGRAM_BOT_TOKEN');
     }
 
     async getMemberMe(id: string): Promise<MemberResponse> {
