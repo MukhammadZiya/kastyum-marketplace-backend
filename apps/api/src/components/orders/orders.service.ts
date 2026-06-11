@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Order, OrderStatus } from './schemas/order.schema';
+import { Order, OrderStatus, PaymentStatus } from './schemas/order.schema';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { Message } from '../../libs/enums/common.enum';
@@ -313,5 +313,55 @@ export class OrdersService {
         }
 
         return savedOrder;
+    }
+
+    async findOwnedById(memberId: string, orderId: string): Promise<Order> {
+        if (!Types.ObjectId.isValid(orderId)) {
+            throw new NotFoundException(Message.NO_DATA_FOUND);
+        }
+
+        const order = await this.orderModel.findById(orderId);
+        if (!order) throw new NotFoundException(Message.NO_DATA_FOUND);
+        if (order.memberId.toString() !== memberId) {
+            throw new ForbiddenException(Message.NOT_ALLOWED_REQUEST);
+        }
+
+        return order;
+    }
+
+    async recordPaymentAttempt(
+        orderId: string,
+        attempt: { shopTransactionId: string; octoPaymentUUID?: string; octoPayUrl?: string; paymentStatus: PaymentStatus },
+    ): Promise<Order> {
+        const order = await this.orderModel.findById(orderId);
+        if (!order) throw new NotFoundException(Message.NO_DATA_FOUND);
+
+        order.paymentAttemptCount += 1;
+        order.paymentAttemptIds.push(attempt.shopTransactionId);
+        order.shopTransactionId = attempt.shopTransactionId;
+        order.octoPaymentUUID = attempt.octoPaymentUUID;
+        order.octoPayUrl = attempt.octoPayUrl;
+        order.paymentStatus = attempt.paymentStatus;
+
+        return order.save();
+    }
+
+    async updatePaymentStatus(orderId: string, paymentStatus: PaymentStatus): Promise<Order> {
+        const order = await this.orderModel.findById(orderId);
+        if (!order) throw new NotFoundException(Message.NO_DATA_FOUND);
+
+        if (order.paymentStatus === paymentStatus) return order;
+
+        order.paymentStatus = paymentStatus;
+        return order.save();
+    }
+
+    async findByShopTransactionId(shopTransactionId: string): Promise<Order | null> {
+        return this.orderModel.findOne({
+            $or: [
+                { shopTransactionId },
+                { paymentAttemptIds: shopTransactionId },
+            ],
+        });
     }
 }

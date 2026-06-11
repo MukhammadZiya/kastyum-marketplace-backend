@@ -8,6 +8,13 @@ export enum OrderStatus {
     CANCELLED = 'CANCELLED',
 }
 
+export enum PaymentStatus {
+    UNPAID = 'UNPAID',
+    PROCESSING = 'PROCESSING',
+    PAID = 'PAID',
+    FAILED = 'FAILED',
+}
+
 @Schema()
 export class OrderItem {
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Product', required: true }) productId: string;
@@ -39,5 +46,26 @@ export class Order extends Document {
 
     @Prop({ type: String })
     shippingAddress?: string;
+
+    @Prop({ enum: PaymentStatus, default: PaymentStatus.UNPAID })
+    paymentStatus: PaymentStatus;
+
+    @Prop({ default: 'UZS' })
+    currency: string;
+
+    @Prop({ type: String })
+    shopTransactionId?: string;
+
+    @Prop({ type: String })
+    octoPaymentUUID?: string;
+
+    @Prop({ type: String })
+    octoPayUrl?: string;
+
+    @Prop({ default: 0 })
+    paymentAttemptCount: number;
+
+    @Prop({ type: [String], default: [] })
+    paymentAttemptIds: string[];
 }
 export const OrderSchema = SchemaFactory.createForClass(Order);
