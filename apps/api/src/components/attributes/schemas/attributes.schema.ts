@@ -29,12 +29,6 @@ export class Material extends Document {
 export const MaterialSchema = SchemaFactory.createForClass(Material);
 
 @Schema()
-export class Fit extends Document {
-    @Prop({ required: true, unique: true }) name: string;
-}
-export const FitSchema = SchemaFactory.createForClass(Fit);
-
-@Schema()
 export class Style extends Document {
     @Prop({ required: true, unique: true }) name: string;
 }

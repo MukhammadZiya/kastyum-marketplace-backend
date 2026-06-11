@@ -24,10 +24,6 @@ export class ProductsInquiryDto {
 
     @IsOptional()
     @IsString()
-    fit?: string;
-
-    @IsOptional()
-    @IsString()
     color?: string;
 
     @IsOptional()

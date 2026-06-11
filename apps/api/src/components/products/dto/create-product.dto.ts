@@ -121,11 +121,6 @@ export class CreateProductDto {
     @IsOptional()
     @Transform(emptyToUndefined)
     @IsMongoId()
-    fit?: string;
-
-    @IsOptional()
-    @Transform(emptyToUndefined)
-    @IsMongoId()
     style?: string;
     @IsOptional() @IsArray() @IsString({ each: true }) images?: string[];
 
