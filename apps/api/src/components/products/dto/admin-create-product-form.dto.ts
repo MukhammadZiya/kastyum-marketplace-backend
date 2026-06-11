@@ -149,11 +149,6 @@ export class AdminCreateProductFormDto {
     @IsOptional()
     @Transform(emptyToUndefined)
     @IsMongoId()
-    fit?: string;
-
-    @IsOptional()
-    @Transform(emptyToUndefined)
-    @IsMongoId()
     style?: string;
 
     @IsOptional()

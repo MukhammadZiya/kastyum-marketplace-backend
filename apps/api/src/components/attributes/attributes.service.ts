@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Color, Size, Brand, Material, Fit, Style } from './schemas/attributes.schema';
+import { Color, Size, Brand, Material, Style } from './schemas/attributes.schema';
 import { Message } from '../../libs/enums/common.enum';
 
 @Injectable()
@@ -11,7 +11,6 @@ export class AttributesService {
         @InjectModel(Size.name) private sizeModel: Model<Size>,
         @InjectModel(Brand.name) private brandModel: Model<Brand>,
         @InjectModel(Material.name) private materialModel: Model<Material>,
-        @InjectModel(Fit.name) private fitModel: Model<Fit>,
         @InjectModel(Style.name) private styleModel: Model<Style>,
     ) { }
 
@@ -21,19 +20,17 @@ export class AttributesService {
             case 'size': return this.sizeModel;
             case 'brand': return this.brandModel;
             case 'material': return this.materialModel;
-            case 'fit': return this.fitModel;
             case 'style': return this.styleModel;
             default: throw new NotFoundException(Message.ATTRIBUTE_TYPE_NOT_FOUND);
         }
     }
 
     async findAllAttributes() {
-        const [colors, sizes, brands, materials, fits, styles] = await Promise.all([
+        const [colors, sizes, brands, materials, styles] = await Promise.all([
             this.colorModel.find().exec(),
             this.sizeModel.find().exec(),
             this.brandModel.find().exec(),
             this.materialModel.find().exec(),
-            this.fitModel.find().exec(),
             this.styleModel.find().exec(),
         ]);
 
@@ -42,7 +39,6 @@ export class AttributesService {
             size: sizes,
             brand: brands,
             material: materials,
-            fit: fits,
             style: styles,
         };
     }
@@ -55,6 +51,27 @@ export class AttributesService {
         try {
             const model = this.getModel(type);
             const created = new model(data);
+            return await created.save();
+        } catch (err: any) {
+            throw new BadRequestException(Message.CREATE_FAILED);
+        }
+    }
+
+    async findOrCreate(type: string, name: string) {
+        const trimmed = (name ?? '').trim();
+        if (!trimmed) {
+            throw new BadRequestException(Message.CREATE_FAILED);
+        }
+
+        const model = this.getModel(type);
+        const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const existing = await model.findOne({ name: { $regex: `^${escaped}$`, $options: 'i' } }).exec();
+        if (existing) {
+            return existing;
+        }
+
+        try {
+            const created = new model({ name: trimmed });
             return await created.save();
         } catch (err: any) {
             throw new BadRequestException(Message.CREATE_FAILED);

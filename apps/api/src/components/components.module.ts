@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { MemberModule } from './member/member.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
     imports: [
@@ -16,6 +17,7 @@ import { ReviewsModule } from './reviews/reviews.module';
         OrdersModule,
         NotificationsModule,
         ReviewsModule,
+        PaymentsModule,
     ],
 })
 export class ComponentsModule { }

@@ -66,9 +66,6 @@ export class Product extends Document {
     @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Style' })
     style?: string;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Fit' })
-    fit?: string;
-
     @Prop({ type: [String] })
     images: string[];
 
