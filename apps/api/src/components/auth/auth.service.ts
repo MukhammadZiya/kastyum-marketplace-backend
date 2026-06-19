@@ -41,6 +41,14 @@ export class AuthService {
         const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
         if (!botToken) return false;
 
+        // Reject stale Telegram auth payloads to prevent replay attacks.
+        // Telegram's own docs recommend a max of 24 hours.
+        const MAX_AGE_SECONDS = 86400;
+        const authDate = Number(data.auth_date);
+        if (!authDate || Math.floor(Date.now() / 1000) - authDate > MAX_AGE_SECONDS) {
+            return false;
+        }
+
         const { hash, ...dataToVerify } = data;
         const dataCheckString = Object.keys(dataToVerify)
             .sort()

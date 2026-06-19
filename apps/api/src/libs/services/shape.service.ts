@@ -33,8 +33,12 @@ export class ShapeService {
     }
 
     removeImage(imagePath: string): void {
-        if (imagePath && fs.existsSync(imagePath)) {
-            fs.unlinkSync(imagePath);
+        if (!imagePath) return;
+        // Guard against path traversal: only allow deletion inside the uploads/ directory
+        const normalized = path.normalize(imagePath);
+        if (!normalized.startsWith('uploads/') && !normalized.startsWith('uploads\\')) return;
+        if (fs.existsSync(normalized)) {
+            fs.unlinkSync(normalized);
         }
     }
 }

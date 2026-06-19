@@ -46,8 +46,9 @@ export class MemberUpdateInput {
     @IsNotEmpty()
     phone?: string;
 
-    @IsOptional()
-    @IsString()
+    // image is not a user-submittable JSON field — it is set server-side after
+    // a multipart upload and must never come from raw request body to prevent
+    // arbitrary path injection.
     image?: string;
 
     @IsOptional()

@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Get, Param, Query, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { MemberService } from './member.service';
 import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput, TelegramLoginInput } from './dto/member.input';
 import { MemberAuthResponse, MemberResponse, SellerApplicationResponse } from './dto/member.response';
@@ -15,6 +16,8 @@ export class MemberController {
         private readonly shapeService: ShapeService,
     ) { }
 
+    // Stricter throttle on auth endpoints: 10 requests per minute per IP
+    @Throttle({ auth: { ttl: 60000, limit: 10 } })
     @Post('signup')
     async signup(@Body() input: MemberInput): Promise<MemberAuthResponse> {
         return this.memberService.signup(input);
@@ -42,16 +45,19 @@ export class MemberController {
         return this.memberService.handleSellerReviewTelegramUpdate(update, secret);
     }
 
+    @Throttle({ auth: { ttl: 60000, limit: 10 } })
     @Post('login')
     async login(@Body() input: LoginInput): Promise<MemberAuthResponse> {
         return this.memberService.login(input);
     }
 
+    @Throttle({ auth: { ttl: 60000, limit: 10 } })
     @Post('telegram-login')
     async telegramLogin(@Body() input: TelegramLoginInput): Promise<MemberAuthResponse> {
         return this.memberService.telegramLogin(input);
     }
 
+    @Throttle({ auth: { ttl: 60000, limit: 10 } })
     @Post('seller/telegram-login')
     async sellerTelegramLogin(@Body() input: TelegramLoginInput): Promise<MemberAuthResponse> {
         return this.memberService.sellerTelegramLogin(input);
