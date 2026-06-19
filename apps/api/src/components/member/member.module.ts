@@ -5,10 +5,12 @@ import { MemberController } from './member.controller';
 import { MemberAdminController } from './member.admin.controller';
 import { Member, MemberSchema } from './schemas/member.schema';
 import { ShapeService } from '../../libs/services/shape.service';
+import { TelegramNotifierService } from '../../libs/services/telegram-notifier.service';
+import { TelegramReviewPollingService } from '../../libs/services/telegram-review-polling.service';
 
 @Module({
     imports: [MongooseModule.forFeature([{ name: 'Member', schema: MemberSchema }])],
-    providers: [MemberService, ShapeService],
+    providers: [MemberService, ShapeService, TelegramNotifierService, TelegramReviewPollingService],
     controllers: [MemberController, MemberAdminController],
     exports: [MemberService]
 })

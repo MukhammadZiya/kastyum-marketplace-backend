@@ -15,15 +15,20 @@ async function bootstrap() {
 
   app.useStaticAssets(join(__dirname, '../../..', 'uploads'), { prefix: '/uploads' });
 
+  // Limit JSON body size to 1 MB to prevent payload-based DoS
+  app.use(require('express').json({ limit: '1mb' }));
+  app.use(require('express').urlencoded({ extended: true, limit: '1mb' }));
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: false,
+      forbidNonWhitelisted: true,
       transform: true,
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new LoggingInterceptor());
+
   app.enableCors({ origin: true, credentials: true });
 
   await app.listen(process.env.PORT ?? 3000, () => {

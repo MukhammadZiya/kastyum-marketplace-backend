@@ -70,7 +70,6 @@ export class ProductsAdminController {
             variantStock: form.variantStock,
             brand: form.brand,
             material: form.material,
-            fit: form.fit,
             style: form.style,
             images: uploadedImages,
             status: form.status ?? ProductStatus.ACTIVE,

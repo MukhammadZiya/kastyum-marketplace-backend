@@ -115,12 +115,11 @@ export class ProductsService {
     }
 
     async findAll(query: ProductsInquiryDto): Promise<{ list: Product[], total: number }> {
-        const { page, limit, brand, material, fit, color, size, minPrice, maxPrice } = query;
+        const { page, limit, brand, material, color, size, minPrice, maxPrice } = query;
         const match: any = { status: ProductStatus.ACTIVE };
 
         if (brand) match.brand = new Types.ObjectId(brand);
         if (material) match.material = new Types.ObjectId(material);
-        if (fit) match.fit = new Types.ObjectId(fit);
         if (color) match.colors = { $in: [new Types.ObjectId(color)] };
         if (size) match.sizes = { $in: [new Types.ObjectId(size)] };
         if (minPrice || maxPrice) {
@@ -183,15 +182,6 @@ export class ProductsService {
                         { $unwind: { path: '$material', preserveNullAndEmptyArrays: true } },
                         {
                             $lookup: {
-                                from: 'fits',
-                                localField: 'fit',
-                                foreignField: '_id',
-                                as: 'fit',
-                            },
-                        },
-                        { $unwind: { path: '$fit', preserveNullAndEmptyArrays: true } },
-                        {
-                            $lookup: {
                                 from: 'styles',
                                 localField: 'style',
                                 foreignField: '_id',
@@ -215,7 +205,7 @@ export class ProductsService {
 
     async findOne(id: string): Promise<Product> {
         const product = await this.productModel.findOne({ _id: id, status: { $ne: ProductStatus.DELETE } })
-            .populate('colors sizes brand material fit style sellerId', '-password')
+            .populate('colors sizes brand material style sellerId', '-password')
             .exec();
         if (!product) throw new NotFoundException(Message.NO_DATA_FOUND);
         return product;
@@ -294,15 +284,6 @@ export class ProductsService {
                         { $unwind: { path: '$material', preserveNullAndEmptyArrays: true } },
                         {
                             $lookup: {
-                                from: 'fits',
-                                localField: 'fit',
-                                foreignField: '_id',
-                                as: 'fit',
-                            },
-                        },
-                        { $unwind: { path: '$fit', preserveNullAndEmptyArrays: true } },
-                        {
-                            $lookup: {
                                 from: 'styles',
                                 localField: 'style',
                                 foreignField: '_id',
@@ -364,12 +345,11 @@ export class ProductsService {
     }
 
     async getProductsByAdmin(query: ProductsInquiryDto): Promise<{ list: Product[], total: number }> {
-        const { page, limit, brand, material, fit, color, size, minPrice, maxPrice } = query;
+        const { page, limit, brand, material, color, size, minPrice, maxPrice } = query;
         const match: any = {}; // Admin sees everything
 
         if (brand) match.brand = new Types.ObjectId(brand);
         if (material) match.material = new Types.ObjectId(material);
-        if (fit) match.fit = new Types.ObjectId(fit);
         if (color) match.colors = { $in: [new Types.ObjectId(color)] };
         if (size) match.sizes = { $in: [new Types.ObjectId(size)] };
         if (minPrice || maxPrice) {
