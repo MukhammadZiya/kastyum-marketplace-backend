@@ -1,10 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Member } from '../member/schemas/member.schema';
 import { MemberAuthResponse, TokenPayload } from '../member/dto/member.response';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { TelegramLoginInput } from '../member/dto/member.input';
+import { OAuth2Client } from 'google-auth-library';
+import * as https from 'https';
+
+export type GoogleUserInfo = {
+    googleId: string;
+    email: string;
+    name: string;
+    picture?: string;
+};
 
 @Injectable()
 export class AuthService {
@@ -35,6 +44,59 @@ export class AuthService {
                 updatedAt: member.get('updatedAt'),
             },
         };
+    }
+
+    async verifyGoogleCredential(idToken?: string, accessToken?: string): Promise<GoogleUserInfo> {
+        if (!idToken && !accessToken) {
+            throw new UnauthorizedException('Provide either idToken or accessToken for Google login.');
+        }
+
+        if (idToken) {
+            const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+            if (!clientId) throw new UnauthorizedException('Google login is not configured on this server.');
+
+            const client = new OAuth2Client(clientId);
+            try {
+                const ticket = await client.verifyIdToken({ idToken, audience: clientId });
+                const payload = ticket.getPayload();
+                if (!payload?.sub || !payload.email) {
+                    throw new UnauthorizedException('Invalid Google ID token payload.');
+                }
+                return {
+                    googleId: payload.sub,
+                    email: payload.email,
+                    name: payload.name || payload.email,
+                    picture: payload.picture,
+                };
+            } catch {
+                throw new UnauthorizedException('Google ID token verification failed.');
+            }
+        }
+
+        // accessToken path — used by the React Native app via expo-auth-session
+        return new Promise((resolve, reject) => {
+            const url = `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${encodeURIComponent(accessToken!)}`;
+            https.get(url, (res) => {
+                let body = '';
+                res.on('data', (chunk) => { body += chunk; });
+                res.on('end', () => {
+                    try {
+                        const data = JSON.parse(body);
+                        if (!data.sub || !data.email) {
+                            return reject(new UnauthorizedException('Google access token is invalid or expired.'));
+                        }
+                        resolve({
+                            googleId: data.sub,
+                            email: data.email,
+                            name: data.name || data.email,
+                            picture: data.picture,
+                        });
+                    } catch {
+                        reject(new UnauthorizedException('Failed to parse Google userinfo response.'));
+                    }
+                });
+            }).on('error', () => reject(new UnauthorizedException('Could not reach Google userinfo endpoint.')));
+        });
     }
 
     verifyTelegramHash(data: TelegramLoginInput): boolean {

@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Get, Param, Query, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { MemberService } from './member.service';
-import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput, TelegramLoginInput } from './dto/member.input';
+import { GoogleLoginInput, LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput, TelegramLoginInput } from './dto/member.input';
 import { MemberAuthResponse, MemberResponse, SellerApplicationResponse } from './dto/member.response';
 import { JwtAuthGuard } from '../../libs/guards/jwt-auth.guard';
 import { CurrentUser } from '../../libs/decorators/current-user.decorator';
@@ -43,6 +43,12 @@ export class MemberController {
         @Query('secret') secret: string,
     ): Promise<{ ok: true }> {
         return this.memberService.handleSellerReviewTelegramUpdate(update, secret);
+    }
+
+    @Throttle({ auth: { ttl: 60000, limit: 10 } })
+    @Post('google-login')
+    async googleLogin(@Body() input: GoogleLoginInput): Promise<MemberAuthResponse> {
+        return this.memberService.googleLogin(input);
     }
 
     @Throttle({ auth: { ttl: 60000, limit: 10 } })

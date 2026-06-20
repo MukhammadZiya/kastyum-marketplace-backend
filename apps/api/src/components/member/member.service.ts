@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuthService } from '../auth/auth.service';
-import { LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput, TelegramLoginInput } from './dto/member.input';
+import { GoogleLoginInput, LoginInput, MemberAdminUpdateInput, MemberInput, MemberUpdateInput, TelegramLoginInput } from './dto/member.input';
 import { MemberAuthResponse, MemberResponse, SellerApplicationResponse } from './dto/member.response';
 import { MemberInquiryDto } from './dto/member-inquiry.dto';
 import { Member, MemberStatus, MemberType } from './schemas/member.schema';
@@ -151,6 +151,34 @@ export class MemberService {
         if (!isMatch) throw new InternalServerErrorException(Message.WRONG_PASSWORD);
 
         return this.authService.generateToken(response);
+    }
+
+    async googleLogin(input: GoogleLoginInput): Promise<MemberAuthResponse> {
+        const info = await this.authService.verifyGoogleCredential(input.idToken, input.accessToken);
+
+        let member = await this.memberModel.findOne({ email: info.email }).exec();
+
+        if (!member) {
+            let nick = info.name.replace(/\s+/g, '_').slice(0, 30);
+            const existingNick = await this.memberModel.findOne({ nick }).exec();
+            if (existingNick) nick = `${nick}_g${info.googleId.slice(-6)}`;
+
+            member = await this.memberModel.create({
+                email: info.email,
+                nick,
+                image: info.picture,
+                type: MemberType.USER,
+                status: MemberStatus.ACTIVE,
+            });
+        } else if (member.status === MemberStatus.BLOCK) {
+            throw new UnauthorizedException(Message.BLOCKED_USER);
+        } else if (member.status === MemberStatus.DELETE) {
+            throw new UnauthorizedException(Message.NO_MEMBER_NICK);
+        } else if (member.status === MemberStatus.PENDING) {
+            throw new UnauthorizedException(Message.SELLER_APPLICATION_APPROVED_REQUIRED);
+        }
+
+        return this.authService.generateToken(member);
     }
 
     async telegramLogin(input: TelegramLoginInput): Promise<MemberAuthResponse> {

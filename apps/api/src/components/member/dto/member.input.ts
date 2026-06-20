@@ -108,3 +108,13 @@ export class TelegramLoginInput {
     @IsString()
     hash: string;
 }
+
+export class GoogleLoginInput {
+    @IsOptional()
+    @IsString()
+    idToken?: string;
+
+    @IsOptional()
+    @IsString()
+    accessToken?: string;
+}
