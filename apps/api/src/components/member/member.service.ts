@@ -356,6 +356,15 @@ export class MemberService {
         this.logger.log(`Seller application ${memberId} set to ${status}.`);
 
         const escapedStore = this.escapeTelegramHtml(result.nick);
+        const reviewer = callbackQuery.from;
+        const reviewerName = reviewer
+            ? this.escapeTelegramHtml(
+                [reviewer.first_name, reviewer.last_name].filter(Boolean).join(' ')
+                || reviewer.username
+                || reviewer.id?.toString()
+                || 'Admin',
+              )
+            : 'Admin';
         const reviewedText = action === 'approve'
             ? [
                 '<b>iBerry seller application approved</b>',
@@ -363,6 +372,7 @@ export class MemberService {
                 `Email: ${this.escapeTelegramHtml(result.email)}`,
                 result.phone ? `Phone: ${this.escapeTelegramHtml(result.phone)}` : null,
                 `Status: ${MemberStatus.ACTIVE}`,
+                `Reviewed by: ${reviewerName}`,
             ].filter(Boolean).join('\n')
             : [
                 '<b>iBerry seller application declined</b>',
@@ -370,6 +380,7 @@ export class MemberService {
                 `Email: ${this.escapeTelegramHtml(result.email)}`,
                 result.phone ? `Phone: ${this.escapeTelegramHtml(result.phone)}` : null,
                 `Status: ${MemberStatus.BLOCK}`,
+                `Reviewed by: ${reviewerName}`,
             ].filter(Boolean).join('\n');
 
         await this.telegramNotifierService.answerCallbackQuery(
