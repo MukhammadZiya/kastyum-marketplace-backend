@@ -39,6 +39,9 @@ export class Member extends Document {
 
     @Prop({ required: true, enum: MemberStatus, default: MemberStatus.ACTIVE })
     status: MemberStatus;
+
+    @Prop({ type: [{ chatId: String, messageId: Number }], default: [] })
+    adminReviewMessages: { chatId: string; messageId: number }[];
 }
 
 export const MemberSchema = SchemaFactory.createForClass(Member);

@@ -8,15 +8,39 @@ export class TelegramNotifierService {
 
     constructor(private readonly configService: ConfigService) { }
 
-    async sendAdminMessage(message: string, replyMarkup?: Record<string, unknown>): Promise<void> {
+    async sendAdminMessageToAll(
+        chatIds: string[],
+        message: string,
+        replyMarkup?: Record<string, unknown>,
+    ): Promise<{ chatId: string; messageId: number }[]> {
         const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
-        const chatId = this.configService.get<string>('TELEGRAM_ADMIN_CHAT_ID');
-
-        if (!botToken || !chatId) {
-            this.logger.warn('Telegram admin notification skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_ADMIN_CHAT_ID is missing.');
-            return;
+        if (!botToken) {
+            this.logger.warn('Telegram sendAdminMessageToAll skipped: TELEGRAM_BOT_TOKEN is missing.');
+            return [];
         }
 
+        const results = await Promise.all(
+            chatIds.map(chatId => this.sendToChat(botToken, chatId, message, replyMarkup)),
+        );
+
+        return results.filter((r): r is { chatId: string; messageId: number } => r !== null);
+    }
+
+    async editAllAdminMessages(
+        messages: { chatId: string; messageId: number }[],
+        text: string,
+    ): Promise<void> {
+        await Promise.all(
+            messages.map(({ chatId, messageId }) => this.editMessageText(chatId, messageId, text)),
+        );
+    }
+
+    private async sendToChat(
+        botToken: string,
+        chatId: string,
+        message: string,
+        replyMarkup?: Record<string, unknown>,
+    ): Promise<{ chatId: string; messageId: number } | null> {
         try {
             const response = await this.postTelegramMethod(botToken, 'sendMessage', {
                 chat_id: chatId,
@@ -27,10 +51,21 @@ export class TelegramNotifierService {
             });
 
             if (!response.ok) {
-                this.logger.warn(`Telegram admin notification failed: ${response.statusCode} ${response.body}`);
+                this.logger.warn(`Telegram sendMessage to ${chatId} failed: ${response.statusCode} ${response.body}`);
+                return null;
             }
+
+            const parsed = JSON.parse(response.body);
+            const messageId = parsed?.result?.message_id;
+            if (!messageId) {
+                this.logger.warn(`Telegram sendMessage to ${chatId}: no message_id in response`);
+                return null;
+            }
+
+            return { chatId, messageId };
         } catch (err: any) {
-            this.logger.warn(`Telegram admin notification failed: ${err?.message ?? err}`);
+            this.logger.warn(`Telegram sendMessage to ${chatId} failed: ${err?.message ?? err}`);
+            return null;
         }
     }
 

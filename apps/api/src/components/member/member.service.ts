@@ -122,14 +122,27 @@ export class MemberService {
     }
 
     private async notifySellerApplication(member: Member): Promise<void> {
-        await this.telegramNotifierService.sendAdminMessage([
+        const adminChatIds = this.getAdminChatIds();
+        if (!adminChatIds.length) return;
+
+        const message = [
             '<b>New iBerry seller application</b>',
             `Store: ${this.escapeTelegramHtml(member.nick)}`,
             `Email: ${this.escapeTelegramHtml(member.email)}`,
             member.phone ? `Phone: ${this.escapeTelegramHtml(member.phone)}` : null,
             `Member ID: ${member._id}`,
             'Review this seller from the buttons below.',
-        ].filter(Boolean).join('\n'), this.buildSellerReviewKeyboard(member._id.toString()));
+        ].filter(Boolean).join('\n');
+
+        const sentMessages = await this.telegramNotifierService.sendAdminMessageToAll(
+            adminChatIds,
+            message,
+            this.buildSellerReviewKeyboard(member._id.toString()),
+        );
+
+        if (sentMessages.length > 0) {
+            await this.memberModel.findByIdAndUpdate(member._id, { adminReviewMessages: sentMessages }).exec();
+        }
     }
 
     async login(input: LoginInput): Promise<MemberAuthResponse> {
@@ -317,11 +330,11 @@ export class MemberService {
 
         this.logger.log(`Telegram seller review callback received: ${action} ${memberId}`);
 
-        const adminChatId = this.configService.get<string>('TELEGRAM_ADMIN_CHAT_ID');
+        const adminChatIds = this.getAdminChatIds();
         const callbackChatId = callbackQuery.message?.chat?.id?.toString();
-        if (adminChatId && callbackChatId !== adminChatId) {
-            this.logger.warn(`Telegram seller review callback rejected: chat ${callbackChatId ?? 'unknown'} is not admin chat.`);
-            await this.telegramNotifierService.answerCallbackQuery(callbackQuery.id, 'Only the admin chat can review seller applications.');
+        if (adminChatIds.length > 0 && (!callbackChatId || !adminChatIds.includes(callbackChatId))) {
+            this.logger.warn(`Telegram seller review callback rejected: chat ${callbackChatId ?? 'unknown'} is not an admin chat.`);
+            await this.telegramNotifierService.answerCallbackQuery(callbackQuery.id, 'Only admin chats can review seller applications.');
             return { ok: true };
         }
 
@@ -364,7 +377,9 @@ export class MemberService {
             action === 'approve' ? 'Seller approved.' : 'Seller declined.',
         );
 
-        if (callbackQuery.message?.chat?.id && callbackQuery.message?.message_id) {
+        if (result.adminReviewMessages?.length) {
+            await this.telegramNotifierService.editAllAdminMessages(result.adminReviewMessages, reviewedText);
+        } else if (callbackQuery.message?.chat?.id && callbackQuery.message?.message_id) {
             await this.telegramNotifierService.editMessageText(
                 callbackQuery.message.chat.id,
                 callbackQuery.message.message_id,
@@ -372,14 +387,14 @@ export class MemberService {
             );
         }
 
-        if (action === 'approve') {
-            await this.telegramNotifierService.sendAdminMessage([
-                '<b>Seller approved</b>',
-                `Store: ${escapedStore}`,
-            ].join('\n'));
-        }
-
         return { ok: true };
+    }
+
+    private getAdminChatIds(): string[] {
+        const raw = this.configService.get<string>('TELEGRAM_ADMIN_CHAT_IDS')
+            || this.configService.get<string>('TELEGRAM_ADMIN_CHAT_ID')
+            || '';
+        return raw.split(',').map(s => s.trim()).filter(Boolean);
     }
 
     private getTelegramReviewSecret(): string | undefined {
