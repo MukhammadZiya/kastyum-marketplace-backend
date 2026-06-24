@@ -54,7 +54,7 @@ export class OctoPaymentService {
         const ttlMinutes = Number(this.configService.get<string>('OCTO_PAYMENT_TTL_MINUTES')) || 30;
 
         const body: Record<string, unknown> = {
-            octo_shop_id: octoShopId,
+            octo_shop_id: Number(octoShopId),
             octo_secret: octoSecret,
             shop_transaction_id: params.shopTransactionId,
             auto_capture: true,
@@ -62,8 +62,8 @@ export class OctoPaymentService {
             init_time: this.formatInitTime(),
             user_data: {
                 user_id: params.userId,
-                phone: params.phone,
-                email: params.email,
+                ...(params.phone ? { phone: params.phone } : {}),
+                ...(params.email ? { email: params.email } : {}),
             },
             total_sum: params.totalSum,
             currency: params.currency,
@@ -95,7 +95,7 @@ export class OctoPaymentService {
         }
 
         return this.postJson<OctoStatusData>('/prepare_payment', {
-            octo_shop_id: octoShopId,
+            octo_shop_id: Number(octoShopId),
             octo_secret: octoSecret,
             shop_transaction_id: shopTransactionId,
         });
