@@ -82,7 +82,7 @@ function parseVariantStockJson({ value }: { value: unknown }) {
 export class CreateProductDto {
     @IsString() title: string;
     @IsString() description: string;
-    @IsString() modelNumber: string;
+    @IsOptional() @IsString() modelNumber?: string;
     @IsEnum(TargetAudience) audience: TargetAudience;
 
     @Type(() => Number)

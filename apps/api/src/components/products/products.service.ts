@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { randomUUID } from 'crypto';
 import { OrderStatus } from '../orders/schemas/order.schema';
 import { Product, ProductStatus } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -106,6 +107,7 @@ export class ProductsService {
         };
         const createdProduct = new this.productModel({
             ...rest,
+            modelNumber: rest.modelNumber?.trim() || `PRD-${randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`,
             sellerId,
             variantStock: inv.variantStock,
             stockCount: inv.stockCount,
