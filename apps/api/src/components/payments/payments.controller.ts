@@ -28,7 +28,7 @@ export class PaymentsController {
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles(MemberType.USER)
     prepare(@Body() dto: PreparePaymentDto, @CurrentUser() user: any) {
-        return this.paymentsService.preparePayment(user.sub, user.email, dto.orderId);
+        return this.paymentsService.preparePayment(user.sub, user.email, dto.orderId, dto.phone);
     }
 
     @Get('status/:orderId')

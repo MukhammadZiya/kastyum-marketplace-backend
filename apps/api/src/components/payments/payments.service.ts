@@ -38,7 +38,7 @@ export class PaymentsService {
         return undefined;
     }
 
-    async preparePayment(memberId: string, email: string | undefined, orderId: string) {
+    async preparePayment(memberId: string, email: string | undefined, orderId: string, formPhone?: string) {
         const [order, member] = await Promise.all([
             this.ordersService.findOwnedById(memberId, orderId),
             this.memberModel.findById(memberId).select('phone email').lean().exec(),
@@ -52,7 +52,7 @@ export class PaymentsService {
         const marketplaceOrigin = this.configService.get<string>('MARKETPLACE_ORIGIN') || 'http://127.0.0.1';
         const apiPublicUrl = this.configService.get<string>('API_PUBLIC_URL');
 
-        const memberPhone = this.sanitizePhone(member?.phone);
+        const memberPhone = this.sanitizePhone(formPhone) ?? this.sanitizePhone(member?.phone);
         const memberEmail = email || member?.email;
 
         const response = await this.octoPaymentService.preparePayment({
