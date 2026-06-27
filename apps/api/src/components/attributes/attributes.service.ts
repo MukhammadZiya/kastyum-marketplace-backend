@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Color, Size, Brand, Material, Style } from './schemas/attributes.schema';
+import { Color, Size, Brand, Material, Style, Category } from './schemas/attributes.schema';
 import { Message } from '../../libs/enums/common.enum';
 
 @Injectable()
@@ -12,6 +12,7 @@ export class AttributesService {
         @InjectModel(Brand.name) private brandModel: Model<Brand>,
         @InjectModel(Material.name) private materialModel: Model<Material>,
         @InjectModel(Style.name) private styleModel: Model<Style>,
+        @InjectModel(Category.name) private categoryModel: Model<Category>,
     ) { }
 
     getModel(type: string): Model<any> {
@@ -21,17 +22,19 @@ export class AttributesService {
             case 'brand': return this.brandModel;
             case 'material': return this.materialModel;
             case 'style': return this.styleModel;
+            case 'category': return this.categoryModel;
             default: throw new NotFoundException(Message.ATTRIBUTE_TYPE_NOT_FOUND);
         }
     }
 
     async findAllAttributes() {
-        const [colors, sizes, brands, materials, styles] = await Promise.all([
+        const [colors, sizes, brands, materials, styles, categories] = await Promise.all([
             this.colorModel.find().exec(),
             this.sizeModel.find().exec(),
             this.brandModel.find().exec(),
             this.materialModel.find().exec(),
             this.styleModel.find().exec(),
+            this.categoryModel.find().exec(),
         ]);
 
         return {
@@ -40,6 +43,7 @@ export class AttributesService {
             brand: brands,
             material: materials,
             style: styles,
+            category: categories,
         };
     }
 

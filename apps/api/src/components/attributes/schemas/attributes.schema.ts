@@ -33,3 +33,9 @@ export class Style extends Document {
     @Prop({ required: true, unique: true }) name: string;
 }
 export const StyleSchema = SchemaFactory.createForClass(Style);
+
+@Schema()
+export class Category extends Document {
+    @Prop({ required: true, unique: true }) name: string;
+}
+export const CategorySchema = SchemaFactory.createForClass(Category);
