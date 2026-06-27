@@ -108,12 +108,22 @@ export class ProductsService {
         const createdProduct = new this.productModel({
             ...rest,
             modelNumber: rest.modelNumber?.trim() || `PRD-${randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`,
+            barcode: `BC-${randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase()}`,
             sellerId,
             variantStock: inv.variantStock,
             stockCount: inv.stockCount,
             inStock: inv.inStock,
         });
         return createdProduct.save();
+    }
+
+    async findSellerProductById(id: string, sellerId: string): Promise<Product> {
+        const product = await this.productModel
+            .findOne({ _id: id, sellerId, status: { $ne: ProductStatus.DELETE } })
+            .populate('colors sizes brand material style category')
+            .exec();
+        if (!product) throw new NotFoundException(Message.NO_DATA_FOUND);
+        return product;
     }
 
     async findAll(query: ProductsInquiryDto): Promise<{ list: Product[], total: number }> {
@@ -207,7 +217,7 @@ export class ProductsService {
 
     async findOne(id: string): Promise<Product> {
         const product = await this.productModel.findOne({ _id: id, status: { $ne: ProductStatus.DELETE } })
-            .populate('colors sizes brand material style sellerId', '-password')
+            .populate('colors sizes brand material style category sellerId', '-password')
             .exec();
         if (!product) throw new NotFoundException(Message.NO_DATA_FOUND);
         return product;
@@ -293,6 +303,15 @@ export class ProductsService {
                             },
                         },
                         { $unwind: { path: '$style', preserveNullAndEmptyArrays: true } },
+                        {
+                            $lookup: {
+                                from: 'categories',
+                                localField: 'category',
+                                foreignField: '_id',
+                                as: 'category',
+                            },
+                        },
+                        { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
                         {
                             $lookup: {
                                 from: 'orders',

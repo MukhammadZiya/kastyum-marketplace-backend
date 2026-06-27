@@ -51,6 +51,13 @@ export class ProductsController {
         return this.productsService.findSellerProducts(user.sub, query);
     }
 
+    @Get('seller-product/:id')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(MemberType.SELLER)
+    findSellerProduct(@Param('id') id: string, @CurrentUser() user: any) {
+        return this.productsService.findSellerProductById(id, user.sub);
+    }
+
     @Get('list')
     findAll(@Query() query: ProductsInquiryDto) {
         return this.productsService.findAll(query);

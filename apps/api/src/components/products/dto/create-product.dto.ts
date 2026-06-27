@@ -11,6 +11,45 @@ import {
 } from 'class-validator';
 import { ProductStatus, TargetAudience } from '../schemas/product.schema';
 
+export class I18nTextDto {
+    @IsOptional() @IsString() uz?: string;
+    @IsOptional() @IsString() ru?: string;
+    @IsOptional() @IsString() en?: string;
+    @IsOptional() @IsString() kk?: string;
+}
+
+export class GuaranteeTermsDto {
+    @IsOptional() @IsString() uz?: string;
+    @IsOptional() @IsString() ru?: string;
+    @IsOptional() @IsString() en?: string;
+    @IsOptional() @IsString() kk?: string;
+}
+
+export class GuaranteeDto {
+    @IsOptional() @IsString() duration?: string;
+    @IsOptional() @ValidateNested() @Type(() => GuaranteeTermsDto) terms?: GuaranteeTermsDto;
+}
+
+export class ProductDimensionsDto {
+    @IsOptional() @Type(() => Number) @IsNumber() @Min(0) length?: number;
+    @IsOptional() @Type(() => Number) @IsNumber() @Min(0) width?: number;
+    @IsOptional() @Type(() => Number) @IsNumber() @Min(0) height?: number;
+}
+
+export class CustomAttributeLineDto {
+    @IsString() key: string;
+    @IsString() value: string;
+}
+
+function parseJsonField<T>(value: unknown): T | undefined {
+    if (value == null || value === '') return undefined;
+    if (typeof value === 'object') return value as T;
+    if (typeof value === 'string') {
+        try { return JSON.parse(value) as T; } catch { return undefined; }
+    }
+    return undefined;
+}
+
 function emptyToUndefined({ value }: { value: unknown }) {
     if (value === '' || value === undefined || value === null) return undefined;
     return value;
@@ -122,6 +161,12 @@ export class CreateProductDto {
     @Transform(emptyToUndefined)
     @IsMongoId()
     style?: string;
+
+    @IsOptional()
+    @Transform(emptyToUndefined)
+    @IsMongoId()
+    category?: string;
+
     @IsOptional() @IsArray() @IsString({ each: true }) images?: string[];
 
     @IsOptional()
@@ -138,4 +183,47 @@ export class CreateProductDto {
     variantStock?: ProductVariantStockLineInputDto[];
 
     @IsOptional() @IsEnum(ProductStatus) status?: ProductStatus;
+
+    @IsOptional()
+    @Transform(({ value }) => parseJsonField<I18nTextDto>(value))
+    @ValidateNested()
+    @Type(() => I18nTextDto)
+    titleI18n?: I18nTextDto;
+
+    @IsOptional()
+    @Transform(({ value }) => parseJsonField<I18nTextDto>(value))
+    @ValidateNested()
+    @Type(() => I18nTextDto)
+    descriptionI18n?: I18nTextDto;
+
+    @IsOptional()
+    @Transform(({ value }) => parseJsonField<I18nTextDto>(value))
+    @ValidateNested()
+    @Type(() => I18nTextDto)
+    careInstructions?: I18nTextDto;
+
+    @IsOptional()
+    @Transform(({ value }) => parseJsonField<GuaranteeDto>(value))
+    @ValidateNested()
+    @Type(() => GuaranteeDto)
+    guarantee?: GuaranteeDto;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    @Min(0)
+    weight?: number;
+
+    @IsOptional()
+    @Transform(({ value }) => parseJsonField<ProductDimensionsDto>(value))
+    @ValidateNested()
+    @Type(() => ProductDimensionsDto)
+    dimensions?: ProductDimensionsDto;
+
+    @IsOptional()
+    @Transform(({ value }) => parseJsonField<CustomAttributeLineDto[]>(value))
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => CustomAttributeLineDto)
+    customAttributes?: CustomAttributeLineDto[];
 }
