@@ -170,6 +170,12 @@ export class CreateProductDto {
     @IsOptional() @IsArray() @IsString({ each: true }) images?: string[];
 
     @IsOptional()
+    @Transform(parseIdArray)
+    @IsArray()
+    @IsString({ each: true })
+    keepImages?: string[];
+
+    @IsOptional()
     @Type(() => Number)
     @IsNumber()
     @Min(0)

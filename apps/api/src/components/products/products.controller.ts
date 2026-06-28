@@ -85,7 +85,6 @@ export class ProductsController {
     ) {
         if (files && files.length > 0) {
             const product = await this.productsService.findOne(id);
-            // Ensure the seller owns the product before deleting images
             const sellerId = (product.sellerId as any)._id?.toString() || product.sellerId.toString();
             if (sellerId !== user.sub) {
                 throw new BadRequestException(Message.NOT_ALLOWED_REQUEST);
@@ -104,7 +103,22 @@ export class ProductsController {
                 uploadedImages.push(imgUrl);
             }
             updateProductDto.images = uploadedImages;
+        } else if (updateProductDto.keepImages) {
+            // Seller removed specific images without uploading new ones
+            const product = await this.productsService.findOne(id);
+            const sellerId = (product.sellerId as any)._id?.toString() || product.sellerId.toString();
+            if (sellerId !== user.sub) {
+                throw new BadRequestException(Message.NOT_ALLOWED_REQUEST);
+            }
+            const keep = new Set(updateProductDto.keepImages);
+            if (product.images) {
+                for (const img of product.images) {
+                    if (!keep.has(img)) this.shapeService.removeImage(img);
+                }
+            }
+            updateProductDto.images = updateProductDto.keepImages;
         }
+        delete updateProductDto.keepImages;
         return this.productsService.update(id, updateProductDto, user.sub);
     }
 
