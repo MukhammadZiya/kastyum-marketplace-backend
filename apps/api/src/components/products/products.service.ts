@@ -366,9 +366,10 @@ export class ProductsService {
     }
 
     async getProductsByAdmin(query: ProductsInquiryDto): Promise<{ list: Product[], total: number }> {
-        const { page, limit, brand, material, color, size, minPrice, maxPrice } = query;
+        const { page, limit, brand, material, color, size, minPrice, maxPrice, sellerId } = query;
         const match: any = {}; // Admin sees everything
 
+        if (sellerId) match.sellerId = new Types.ObjectId(sellerId);
         if (brand) match.brand = new Types.ObjectId(brand);
         if (material) match.material = new Types.ObjectId(material);
         if (color) match.colors = { $in: [new Types.ObjectId(color)] };

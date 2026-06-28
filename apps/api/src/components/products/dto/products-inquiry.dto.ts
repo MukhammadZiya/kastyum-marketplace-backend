@@ -39,4 +39,8 @@ export class ProductsInquiryDto {
     @Type(() => Number)
     @IsNumber()
     maxPrice?: number;
+
+    @IsOptional()
+    @IsString()
+    sellerId?: string;
 }
