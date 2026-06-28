@@ -119,6 +119,22 @@ export class ProductsController {
             updateProductDto.images = updateProductDto.keepImages;
         }
         delete updateProductDto.keepImages;
+
+        // @Body() Partial<DTO> loses class-transformer decorators at runtime — parse JSON strings manually
+        const parseJsonArray = (v: unknown): string[] | undefined => {
+            if (Array.isArray(v)) return v;
+            if (typeof v === 'string' && v.trim().startsWith('[')) {
+                try { return JSON.parse(v); } catch { return undefined; }
+            }
+            return undefined;
+        };
+        const parsedSizes = parseJsonArray(updateProductDto.sizes as any);
+        if (parsedSizes !== undefined) updateProductDto.sizes = parsedSizes;
+        const parsedColors = parseJsonArray(updateProductDto.colors as any);
+        if (parsedColors !== undefined) updateProductDto.colors = parsedColors;
+        const parsedVariantStock = parseJsonArray(updateProductDto.variantStock as any);
+        if (parsedVariantStock !== undefined) updateProductDto.variantStock = parsedVariantStock as any;
+
         return this.productsService.update(id, updateProductDto, user.sub);
     }
 
